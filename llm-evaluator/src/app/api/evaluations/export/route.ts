@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
            evaluation.scores.japanese + 
            evaluation.scores.overall) / 5
         ).toFixed(2),
-        'コメント': evaluation.comment || ''
+        'コメント': evaluation.comments?.overall || ''
       };
     });
 
