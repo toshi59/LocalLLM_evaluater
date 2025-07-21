@@ -268,6 +268,11 @@ export default function ResultsPage() {
                           </div>
                         </th>
                       ))}
+                      <th className="border border-gray-300 bg-gradient-to-r from-blue-100 to-blue-200 p-2 text-center font-bold text-blue-800 min-w-[100px]">
+                        <div className="text-xs leading-tight">
+                          平均スコア
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -297,6 +302,28 @@ export default function ResultsPage() {
                               </td>
                             );
                           })}
+                          <td className="border border-gray-300 p-2 text-center bg-gradient-to-r from-blue-50 to-blue-100">
+                            {(() => {
+                              const modelScores = evaluatedQuestions
+                                .map(question => matrixData[model.id]?.[question.id])
+                                .filter(score => score !== null && score !== undefined);
+                              
+                              if (modelScores.length === 0) {
+                                return (
+                                  <div className="text-gray-400 text-xs">
+                                    未評価
+                                  </div>
+                                );
+                              }
+                              
+                              const average = modelScores.reduce((sum, score) => sum + score, 0) / modelScores.length;
+                              return (
+                                <div className={`inline-block px-3 py-2 rounded-lg text-sm font-bold border-2 border-blue-300 ${getScoreColor(average)}`}>
+                                  {average.toFixed(1)}
+                                </div>
+                              );
+                            })()}
+                          </td>
                         </tr>
                       );
                     })}
