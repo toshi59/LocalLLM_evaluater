@@ -1,11 +1,13 @@
 import fs from 'fs';
 import path from 'path';
-import { LLMModel, Question, Evaluation } from '@/types';
+import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt } from '@/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const MODELS_FILE = path.join(DATA_DIR, 'models.json');
 const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
 const EVALUATIONS_FILE = path.join(DATA_DIR, 'evaluations.json');
+const EVALUATOR_CONFIG_FILE = path.join(DATA_DIR, 'evaluator-config.json');
+const EVALUATION_PROMPTS_FILE = path.join(DATA_DIR, 'evaluation-prompts.json');
 
 // データディレクトリとファイルを初期化
 function initializeData() {
@@ -182,6 +184,76 @@ export const evaluationService = {
     
     evaluations.splice(index, 1);
     writeJsonFile(EVALUATIONS_FILE, evaluations);
+    return true;
+  }
+};
+
+// 評価設定管理
+export const evaluatorConfigService = {
+  get: (): EvaluatorConfig | null => {
+    initializeData();
+    try {
+      const data = fs.readFileSync(EVALUATOR_CONFIG_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  },
+  
+  update: (config: Partial<Omit<EvaluatorConfig, 'id' | 'createdAt'>>): EvaluatorConfig => {
+    const existing = evaluatorConfigService.get();
+    const updatedConfig: EvaluatorConfig = {
+      id: existing?.id || 'openai-gpt4o',
+      name: existing?.name || 'OpenAI GPT-4o',
+      createdAt: existing?.createdAt || new Date(),
+      ...config,
+    };
+    fs.writeFileSync(EVALUATOR_CONFIG_FILE, JSON.stringify(updatedConfig, null, 2));
+    return updatedConfig;
+  }
+};
+
+// 評価プロンプト管理
+export const evaluationPromptService = {
+  getAll: (): EvaluationPrompt[] => {
+    initializeData();
+    return readJsonFile<EvaluationPrompt>(EVALUATION_PROMPTS_FILE);
+  },
+  
+  getById: (id: string): EvaluationPrompt | null => {
+    const prompts = evaluationPromptService.getAll();
+    return prompts.find(prompt => prompt.id === id) || null;
+  },
+  
+  create: (prompt: Omit<EvaluationPrompt, 'id' | 'createdAt'>): EvaluationPrompt => {
+    const prompts = evaluationPromptService.getAll();
+    const newPrompt: EvaluationPrompt = {
+      ...prompt,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+    };
+    prompts.push(newPrompt);
+    writeJsonFile(EVALUATION_PROMPTS_FILE, prompts);
+    return newPrompt;
+  },
+  
+  update: (id: string, updates: Partial<Omit<EvaluationPrompt, 'id' | 'createdAt'>>): EvaluationPrompt | null => {
+    const prompts = evaluationPromptService.getAll();
+    const index = prompts.findIndex(prompt => prompt.id === id);
+    if (index === -1) return null;
+    
+    prompts[index] = { ...prompts[index], ...updates };
+    writeJsonFile(EVALUATION_PROMPTS_FILE, prompts);
+    return prompts[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const prompts = evaluationPromptService.getAll();
+    const index = prompts.findIndex(prompt => prompt.id === id);
+    if (index === -1) return false;
+    
+    prompts.splice(index, 1);
+    writeJsonFile(EVALUATION_PROMPTS_FILE, prompts);
     return true;
   }
 };

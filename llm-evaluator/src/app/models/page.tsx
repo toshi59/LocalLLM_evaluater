@@ -10,8 +10,7 @@ export default function ModelsPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    endpoint: '',
-    apiKey: '',
+    size: '',
     description: '',
   });
 
@@ -45,7 +44,7 @@ export default function ModelsPage() {
       });
 
       if (response.ok) {
-        setFormData({ name: '', endpoint: '', apiKey: '', description: '' });
+        setFormData({ name: '', size: '', description: '' });
         setShowForm(false);
         fetchModels();
       }
@@ -115,27 +114,14 @@ export default function ModelsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  エンドポイントURL *
+                  モデルサイズ（オプション）
                 </label>
                 <input
-                  type="url"
-                  value={formData.endpoint}
-                  onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })}
+                  type="text"
+                  value={formData.size}
+                  onChange={(e) => setFormData({ ...formData, size: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="http://localhost:8080/v1/chat/completions"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  APIキー（オプション）
-                </label>
-                <input
-                  type="password"
-                  value={formData.apiKey}
-                  onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: 7B, 13B, 70B"
                 />
               </div>
 
@@ -195,12 +181,12 @@ export default function ModelsPage() {
                 </div>
                 
                 <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-500">エンドポイント:</span>
-                    <p className="font-mono text-xs bg-gray-100 p-1 rounded mt-1 break-all">
-                      {model.endpoint}
-                    </p>
-                  </div>
+                  {model.size && (
+                    <div>
+                      <span className="text-gray-500">サイズ:</span>
+                      <span className="ml-2 font-medium">{model.size}</span>
+                    </div>
+                  )}
                   
                   {model.description && (
                     <div>

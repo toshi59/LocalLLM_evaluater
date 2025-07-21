@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "name": "gemma-3-4b-it",
+    "size": "4B",
+    "description": "",
+    "id": "1753091339096",
+    "createdAt": "2025-07-21T09:48:59.096Z"
+  },
+  {
+    "name": "gemma-3-27b-it",
+    "size": "27B",
+    "description": "",
+    "id": "1753092046516",
+    "createdAt": "2025-07-21T10:00:46.516Z"
+  },
+  {
+    "name": "Llama-4-Maverick-17B-128E-Instruct",
+    "size": "17B",
+    "description": "",
+    "id": "1753092141620",
+    "createdAt": "2025-07-21T10:02:21.620Z"
+  }
+]

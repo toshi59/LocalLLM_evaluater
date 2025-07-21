@@ -46,6 +46,14 @@ export default function Home() {
             <h2 className="text-xl font-semibold mb-2">統計・分析</h2>
             <p className="text-gray-600">パフォーマンス統計とトレンド分析</p>
           </Link>
+
+          <Link 
+            href="/settings" 
+            className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border"
+          >
+            <h2 className="text-xl font-semibold mb-2">設定</h2>
+            <p className="text-gray-600">評価LLM・プロンプト設定</p>
+          </Link>
         </div>
 
         <div className="mt-12 bg-gray-50 rounded-lg p-6">

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const requestBody = {
-      model: "local-model",
+      model: model.name,
       messages: [
         {
           role: "user",

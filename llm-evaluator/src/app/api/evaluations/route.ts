@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       modelId: body.modelId,
       response: body.response,
       scores: body.scores,
-      comment: body.comment,
+      comments: body.comments || {},
     });
 
     return NextResponse.json(evaluation, { status: 201 });

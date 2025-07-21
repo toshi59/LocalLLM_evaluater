@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LLMModel, Question, EvaluationScores } from '@/types';
+import { LLMModel, Question, EvaluationScores, EvaluationComments, EvaluationPrompt } from '@/types';
 
 export default function EvaluationPage() {
   const [models, setModels] = useState<LLMModel[]>([]);
@@ -11,6 +11,7 @@ export default function EvaluationPage() {
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
   const [response, setResponse] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showEvaluation, setShowEvaluation] = useState(false);
   const [scores, setScores] = useState<EvaluationScores>({
     accuracy: 3,
     completeness: 3,
@@ -18,12 +19,22 @@ export default function EvaluationPage() {
     japanese: 3,
     overall: 3,
   });
-  const [comment, setComment] = useState<string>('');
-  const [showEvaluation, setShowEvaluation] = useState(false);
+  const [comments, setComments] = useState<EvaluationComments>({
+    accuracy: '',
+    completeness: '',
+    logic: '',
+    japanese: '',
+    overall: ''
+  });
+  const [prompts, setPrompts] = useState<EvaluationPrompt[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('');
+  const [isAutoEvaluating, setIsAutoEvaluating] = useState(false);
+  const [evaluationCompleted, setEvaluationCompleted] = useState(false);
 
   useEffect(() => {
     fetchModels();
     fetchQuestions();
+    fetchPrompts();
   }, []);
 
   const fetchModels = async () => {
@@ -50,41 +61,88 @@ export default function EvaluationPage() {
     }
   };
 
-  const handleGetResponse = async () => {
+  const fetchPrompts = async () => {
+    try {
+      const response = await fetch('/api/evaluator/prompts');
+      if (response.ok) {
+        const data = await response.json();
+        setPrompts(data);
+        if (data.length > 0) {
+          setSelectedPromptId(data[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching prompts:', error);
+    }
+  };
+
+  const handleProceedToEvaluation = () => {
     if (!selectedModelId || !selectedQuestionId) {
       alert('モデルと質問を選択してください');
       return;
     }
+    setShowEvaluation(true);
+  };
+
+  const handleEvaluateResponse = async () => {
+    if (!response.trim()) {
+      alert('回答内容を入力してください');
+      return;
+    }
 
     const selectedQuestion = questions.find(q => q.id === selectedQuestionId);
-    if (!selectedQuestion) return;
+    if (!selectedQuestion) {
+      alert('質問が選択されていません');
+      return;
+    }
 
-    setIsLoading(true);
+    // 自動評価を実行
+    await handleAutoEvaluate(response);
+  };
+
+  const handleAutoEvaluate = async (llmResponse: string) => {
+    const selectedQuestion = questions.find(q => q.id === selectedQuestionId);
+    if (!selectedQuestion || !selectedPromptId) return;
+
+    setIsAutoEvaluating(true);
     try {
-      const response = await fetch('/api/llm/chat', {
+      const response = await fetch('/api/evaluator/auto-evaluate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          modelId: selectedModelId,
-          message: selectedQuestion.content,
+          questionContent: selectedQuestion.content,
+          llmResponse: llmResponse,
+          promptId: selectedPromptId,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setResponse(data.response);
-        setShowEvaluation(true);
+        setScores(data.scores);
+        setComments(data.comments || {
+          accuracy: '',
+          completeness: '',
+          logic: '',
+          japanese: '',
+          overall: ''
+        });
+        setEvaluationCompleted(true);
       } else {
-        const error = await response.json();
-        alert(`エラー: ${error.error}`);
+        const errorText = await response.text();
+        console.error('Auto-evaluation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        alert(`自動評価でエラーが発生しました: ${response.status} ${response.statusText}\n${errorText}`);
       }
     } catch (error) {
-      console.error('Error getting LLM response:', error);
-      alert('LLMとの通信でエラーが発生しました');
+      console.error('Error in auto-evaluation:', error);
+      alert(`自動評価でエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsLoading(false);
+      setIsAutoEvaluating(false);
     }
   };
 
@@ -105,14 +163,20 @@ export default function EvaluationPage() {
           modelId: selectedModelId,
           response,
           scores,
-          comment,
+          comments,
         }),
       });
 
       if (evaluationResponse.ok) {
         alert('評価を保存しました');
         setResponse('');
-        setComment('');
+        setComments({
+          accuracy: '',
+          completeness: '',
+          logic: '',
+          japanese: '',
+          overall: ''
+        });
         setScores({
           accuracy: 3,
           completeness: 3,
@@ -120,6 +184,7 @@ export default function EvaluationPage() {
           japanese: 3,
           overall: 3,
         });
+        setEvaluationCompleted(false);
         setShowEvaluation(false);
       } else {
         const error = await evaluationResponse.json();
@@ -208,6 +273,29 @@ export default function EvaluationPage() {
                   </select>
                 )}
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  評価プロンプト
+                </label>
+                {prompts.length === 0 ? (
+                  <div className="text-gray-500 text-sm">
+                    評価プロンプトが登録されていません。
+                  </div>
+                ) : (
+                  <select
+                    value={selectedPromptId}
+                    onChange={(e) => setSelectedPromptId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {prompts.map((prompt) => (
+                      <option key={prompt.id} value={prompt.id}>
+                        {prompt.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
 
             {selectedQuestion && (
@@ -222,18 +310,18 @@ export default function EvaluationPage() {
 
             <div className="mt-6">
               <button
-                onClick={handleGetResponse}
-                disabled={!selectedModelId || !selectedQuestionId || isLoading}
+                onClick={handleProceedToEvaluation}
+                disabled={!selectedModelId || !selectedQuestionId}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'LLMに問い合わせ中...' : 'LLMの回答を取得'}
+                評価画面に進む
               </button>
             </div>
           </div>
         ) : (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6 border">
-              <h2 className="text-xl font-semibold mb-4">LLMの回答</h2>
+              <h2 className="text-xl font-semibold mb-4">回答入力・評価</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">質問:</h3>
@@ -244,61 +332,69 @@ export default function EvaluationPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">
-                    回答 ({selectedModel?.name}):
+                    {selectedModel?.name}の回答を入力:
                   </h3>
-                  <div className="bg-blue-50 p-4 rounded-md">
-                    <p className="text-gray-700 whitespace-pre-wrap">{response}</p>
+                  <textarea
+                    value={response}
+                    onChange={(e) => setResponse(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[200px]"
+                    placeholder="LLMの回答をここにペーストしてください..."
+                  />
+                  <div className="mt-4">
+                    <button
+                      onClick={handleEvaluateResponse}
+                      disabled={isAutoEvaluating || !response.trim()}
+                      className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isAutoEvaluating ? 'GPT-4oで評価中...' : '評価実行'}
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6 border">
-              <h2 className="text-xl font-semibold mb-6">評価</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            {evaluationCompleted && (
+              <div className="bg-white rounded-lg shadow-md p-6 border">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold">評価結果</h2>
+                  {isAutoEvaluating && (
+                    <div className="flex items-center text-blue-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      GPT-4oで自動評価中...
+                    </div>
+                  )}
+                </div>
+                
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                   { key: 'accuracy', label: '正確性', color: 'blue' },
                   { key: 'completeness', label: '網羅性', color: 'green' },
                   { key: 'logic', label: '論理構成', color: 'purple' },
                   { key: 'japanese', label: '日本語', color: 'orange' },
-                  { key: 'overall', label: '総合', color: 'red' },
                 ].map((item) => (
                   <div key={item.key} className="text-center">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {item.label}
-                    </label>
-                    <div className="space-y-2">
-                      {[1, 2, 3, 4, 5].map((value) => (
-                        <label key={value} className="flex items-center">
-                          <input
-                            type="radio"
-                            name={item.key}
-                            value={value}
-                            checked={scores[item.key as keyof EvaluationScores] === value}
-                            onChange={() => handleScoreChange(item.key as keyof EvaluationScores, value)}
-                            className="mr-2"
-                          />
-                          <span className="text-sm">{value}</span>
-                        </label>
-                      ))}
+                    <div className="text-lg font-semibold mb-2">{item.label}</div>
+                    <div className="text-3xl font-bold text-blue-600 mb-2">
+                      {scores[item.key as keyof EvaluationScores]}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {comments[item.key as keyof EvaluationComments] || 'コメントなし'}
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  コメント（オプション）
-                </label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={4}
-                  placeholder="評価の理由や詳細なフィードバックを記入してください"
-                />
+              {/* 総合評価 */}
+              <div className="mt-8 text-center bg-gray-50 p-4 rounded-lg">
+                <div className="text-lg font-semibold mb-2">総合評価</div>
+                <div className="text-4xl font-bold text-red-600 mb-2">
+                  {scores.overall}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {comments.overall || '他項目の平均値で自動計算'}
+                </div>
               </div>
+
 
               <div className="mt-6 flex gap-4">
                 <button
@@ -315,6 +411,7 @@ export default function EvaluationPage() {
                 </button>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>

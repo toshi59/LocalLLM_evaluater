@@ -11,6 +11,7 @@ export default function ResultsPage() {
   const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchEvaluations();
@@ -100,6 +101,59 @@ export default function ResultsPage() {
     };
   };
 
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedModelId) params.append('modelId', selectedModelId);
+      if (selectedQuestionId) params.append('questionId', selectedQuestionId);
+      
+      const response = await fetch(`/api/evaluations/export?${params.toString()}`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `evaluation_results_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('CSVエクスポートでエラーが発生しました');
+      }
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('CSVエクスポートでエラーが発生しました');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDeleteEvaluation = async (evaluationId: string) => {
+    if (!confirm('この評価結果を削除しますか？')) return;
+
+    try {
+      const response = await fetch(`/api/evaluations/${evaluationId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // リストから削除
+        setEvaluations(prev => prev.filter(e => e.id !== evaluationId));
+        alert('評価結果を削除しました');
+      } else {
+        const error = await response.json();
+        alert(`エラー: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting evaluation:', error);
+      alert('削除でエラーが発生しました');
+    }
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 4) return 'text-green-600 bg-green-100';
     if (score >= 3) return 'text-yellow-600 bg-yellow-100';
@@ -127,7 +181,16 @@ export default function ResultsPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6 border mb-8">
-          <h2 className="text-xl font-semibold mb-4">フィルタ</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">フィルタ・操作</h2>
+            <button
+              onClick={handleExportCSV}
+              disabled={isExporting || evaluations.length === 0}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isExporting ? 'エクスポート中...' : 'CSV出力'}
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -210,6 +273,13 @@ export default function ResultsPage() {
                       評価日: {new Date(evaluation.evaluatedAt).toLocaleDateString('ja-JP')}
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleDeleteEvaluation(evaluation.id)}
+                    className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                    title="この評価結果を削除"
+                  >
+                    削除
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -248,11 +318,26 @@ export default function ResultsPage() {
                   ))}
                 </div>
 
-                {evaluation.comment && (
+                {evaluation.comments && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">コメント:</h4>
-                    <div className="bg-yellow-50 p-3 rounded-md text-sm text-gray-700">
-                      {evaluation.comment}
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">詳細コメント:</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { key: 'accuracy', label: '正確性' },
+                        { key: 'completeness', label: '網羅性' },
+                        { key: 'logic', label: '論理構成' },
+                        { key: 'japanese', label: '日本語' },
+                        { key: 'overall', label: '総合' },
+                      ].map((item) => (
+                        evaluation.comments[item.key as keyof typeof evaluation.comments] && (
+                          <div key={item.key} className="bg-yellow-50 p-3 rounded-md">
+                            <div className="font-medium text-sm text-gray-800 mb-1">{item.label}:</div>
+                            <div className="text-xs text-gray-700">
+                              {evaluation.comments[item.key as keyof typeof evaluation.comments]}
+                            </div>
+                          </div>
+                        )
+                      ))}
                     </div>
                   </div>
                 )}

@@ -16,17 +16,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    if (!body.name || !body.endpoint) {
+    if (!body.name) {
       return NextResponse.json(
-        { error: 'Name and endpoint are required' },
+        { error: 'Name is required' },
         { status: 400 }
       );
     }
 
     const model = modelService.create({
       name: body.name,
-      endpoint: body.endpoint,
-      apiKey: body.apiKey,
+      size: body.size,
       description: body.description,
     });
 
