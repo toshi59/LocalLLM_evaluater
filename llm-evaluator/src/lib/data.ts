@@ -1,0 +1,187 @@
+import fs from 'fs';
+import path from 'path';
+import { LLMModel, Question, Evaluation } from '@/types';
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const MODELS_FILE = path.join(DATA_DIR, 'models.json');
+const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
+const EVALUATIONS_FILE = path.join(DATA_DIR, 'evaluations.json');
+
+// データディレクトリとファイルを初期化
+function initializeData() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  
+  if (!fs.existsSync(MODELS_FILE)) {
+    fs.writeFileSync(MODELS_FILE, JSON.stringify([], null, 2));
+  }
+  
+  if (!fs.existsSync(QUESTIONS_FILE)) {
+    fs.writeFileSync(QUESTIONS_FILE, JSON.stringify([], null, 2));
+  }
+  
+  if (!fs.existsSync(EVALUATIONS_FILE)) {
+    fs.writeFileSync(EVALUATIONS_FILE, JSON.stringify([], null, 2));
+  }
+}
+
+// JSONファイルを読み込み
+function readJsonFile<T>(filePath: string): T[] {
+  try {
+    const data = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+// JSONファイルに書き込み
+function writeJsonFile<T>(filePath: string, data: T[]): void {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+// LLMモデル管理
+export const modelService = {
+  getAll: (): LLMModel[] => {
+    initializeData();
+    return readJsonFile<LLMModel>(MODELS_FILE);
+  },
+  
+  getById: (id: string): LLMModel | null => {
+    const models = modelService.getAll();
+    return models.find(model => model.id === id) || null;
+  },
+  
+  create: (model: Omit<LLMModel, 'id' | 'createdAt'>): LLMModel => {
+    const models = modelService.getAll();
+    const newModel: LLMModel = {
+      ...model,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+    };
+    models.push(newModel);
+    writeJsonFile(MODELS_FILE, models);
+    return newModel;
+  },
+  
+  update: (id: string, updates: Partial<Omit<LLMModel, 'id' | 'createdAt'>>): LLMModel | null => {
+    const models = modelService.getAll();
+    const index = models.findIndex(model => model.id === id);
+    if (index === -1) return null;
+    
+    models[index] = { ...models[index], ...updates };
+    writeJsonFile(MODELS_FILE, models);
+    return models[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const models = modelService.getAll();
+    const index = models.findIndex(model => model.id === id);
+    if (index === -1) return false;
+    
+    models.splice(index, 1);
+    writeJsonFile(MODELS_FILE, models);
+    return true;
+  }
+};
+
+// 質問管理
+export const questionService = {
+  getAll: (): Question[] => {
+    initializeData();
+    return readJsonFile<Question>(QUESTIONS_FILE);
+  },
+  
+  getById: (id: string): Question | null => {
+    const questions = questionService.getAll();
+    return questions.find(question => question.id === id) || null;
+  },
+  
+  create: (question: Omit<Question, 'id' | 'createdAt'>): Question => {
+    const questions = questionService.getAll();
+    const newQuestion: Question = {
+      ...question,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+    };
+    questions.push(newQuestion);
+    writeJsonFile(QUESTIONS_FILE, questions);
+    return newQuestion;
+  },
+  
+  update: (id: string, updates: Partial<Omit<Question, 'id' | 'createdAt'>>): Question | null => {
+    const questions = questionService.getAll();
+    const index = questions.findIndex(question => question.id === id);
+    if (index === -1) return null;
+    
+    questions[index] = { ...questions[index], ...updates };
+    writeJsonFile(QUESTIONS_FILE, questions);
+    return questions[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const questions = questionService.getAll();
+    const index = questions.findIndex(question => question.id === id);
+    if (index === -1) return false;
+    
+    questions.splice(index, 1);
+    writeJsonFile(QUESTIONS_FILE, questions);
+    return true;
+  }
+};
+
+// 評価管理
+export const evaluationService = {
+  getAll: (): Evaluation[] => {
+    initializeData();
+    return readJsonFile<Evaluation>(EVALUATIONS_FILE);
+  },
+  
+  getById: (id: string): Evaluation | null => {
+    const evaluations = evaluationService.getAll();
+    return evaluations.find(evaluation => evaluation.id === id) || null;
+  },
+  
+  getByQuestion: (questionId: string): Evaluation[] => {
+    const evaluations = evaluationService.getAll();
+    return evaluations.filter(evaluation => evaluation.questionId === questionId);
+  },
+  
+  getByModel: (modelId: string): Evaluation[] => {
+    const evaluations = evaluationService.getAll();
+    return evaluations.filter(evaluation => evaluation.modelId === modelId);
+  },
+  
+  create: (evaluation: Omit<Evaluation, 'id' | 'evaluatedAt'>): Evaluation => {
+    const evaluations = evaluationService.getAll();
+    const newEvaluation: Evaluation = {
+      ...evaluation,
+      id: Date.now().toString(),
+      evaluatedAt: new Date(),
+    };
+    evaluations.push(newEvaluation);
+    writeJsonFile(EVALUATIONS_FILE, evaluations);
+    return newEvaluation;
+  },
+  
+  update: (id: string, updates: Partial<Omit<Evaluation, 'id' | 'evaluatedAt'>>): Evaluation | null => {
+    const evaluations = evaluationService.getAll();
+    const index = evaluations.findIndex(evaluation => evaluation.id === id);
+    if (index === -1) return null;
+    
+    evaluations[index] = { ...evaluations[index], ...updates };
+    writeJsonFile(EVALUATIONS_FILE, evaluations);
+    return evaluations[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const evaluations = evaluationService.getAll();
+    const index = evaluations.findIndex(evaluation => evaluation.id === id);
+    if (index === -1) return false;
+    
+    evaluations.splice(index, 1);
+    writeJsonFile(EVALUATIONS_FILE, evaluations);
+    return true;
+  }
+};
