@@ -12,6 +12,7 @@ export default function ResultsPage() {
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchEvaluations();
@@ -155,9 +156,19 @@ export default function ResultsPage() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 4) return 'text-green-600 bg-green-100';
+    if (score >= 4.5) return 'text-green-600 bg-green-100';
     if (score >= 3) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
+  };
+
+  const toggleExpanded = (evaluationId: string) => {
+    const newExpanded = new Set(expandedItems);
+    if (newExpanded.has(evaluationId)) {
+      newExpanded.delete(evaluationId);
+    } else {
+      newExpanded.add(evaluationId);
+    }
+    setExpandedItems(newExpanded);
   };
 
   const averageScores = calculateAverageScores();
@@ -284,19 +295,39 @@ export default function ResultsPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">質問:</h4>
-                    <div className="bg-gray-50 p-3 rounded-md text-sm">
-                      {evaluation.question.content.length > 200 
-                        ? `${evaluation.question.content.substring(0, 200)}...` 
-                        : evaluation.question.content}
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-sm font-medium text-gray-700">質問:</h4>
+                      {evaluation.question.content.length > 200 && (
+                        <button
+                          onClick={() => toggleExpanded(`question-${evaluation.id}`)}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          {expandedItems.has(`question-${evaluation.id}`) ? '省略表示' : '全文表示'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap">
+                      {expandedItems.has(`question-${evaluation.id}`) || evaluation.question.content.length <= 200
+                        ? evaluation.question.content
+                        : `${evaluation.question.content.substring(0, 200)}...`}
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">回答:</h4>
-                    <div className="bg-blue-50 p-3 rounded-md text-sm">
-                      {evaluation.response.length > 200 
-                        ? `${evaluation.response.substring(0, 200)}...` 
-                        : evaluation.response}
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-sm font-medium text-gray-700">回答:</h4>
+                      {evaluation.response.length > 200 && (
+                        <button
+                          onClick={() => toggleExpanded(`response-${evaluation.id}`)}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          {expandedItems.has(`response-${evaluation.id}`) ? '省略表示' : '全文表示'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="bg-blue-50 p-3 rounded-md text-sm whitespace-pre-wrap">
+                      {expandedItems.has(`response-${evaluation.id}`) || evaluation.response.length <= 200
+                        ? evaluation.response
+                        : `${evaluation.response.substring(0, 200)}...`}
                     </div>
                   </div>
                 </div>

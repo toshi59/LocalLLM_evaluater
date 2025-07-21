@@ -200,6 +200,12 @@ export default function EvaluationPage() {
     setScores({ ...scores, [key]: value });
   };
 
+  const getScoreColor = (score: number) => {
+    if (score >= 4.5) return 'text-green-600 bg-green-100';
+    if (score >= 3) return 'text-yellow-600 bg-yellow-100';
+    return 'text-red-600 bg-red-100';
+  };
+
   const selectedQuestion = questions.find(q => q.id === selectedQuestionId);
   const selectedModel = models.find(m => m.id === selectedModelId);
 
@@ -374,7 +380,7 @@ export default function EvaluationPage() {
                 ].map((item) => (
                   <div key={item.key} className="text-center">
                     <div className="text-lg font-semibold mb-2">{item.label}</div>
-                    <div className="text-3xl font-bold text-blue-600 mb-2">
+                    <div className={`text-3xl font-bold mb-2 px-4 py-2 rounded-lg ${getScoreColor(scores[item.key as keyof EvaluationScores])}`}>
                       {scores[item.key as keyof EvaluationScores]}
                     </div>
                     <div className="text-sm text-gray-600">
@@ -387,7 +393,7 @@ export default function EvaluationPage() {
               {/* 総合評価 */}
               <div className="mt-8 text-center bg-gray-50 p-4 rounded-lg">
                 <div className="text-lg font-semibold mb-2">総合評価</div>
-                <div className="text-4xl font-bold text-red-600 mb-2">
+                <div className={`text-4xl font-bold mb-2 px-6 py-3 rounded-lg inline-block ${getScoreColor(scores.overall)}`}>
                   {scores.overall}
                 </div>
                 <div className="text-sm text-gray-600">
