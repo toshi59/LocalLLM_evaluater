@@ -3,10 +3,11 @@ import { modelService } from '@/lib/data';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const model = modelService.getById(params.id);
+    const { id } = await params;
+    const model = modelService.getById(id);
     
     if (!model) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
@@ -21,11 +22,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
-    const model = modelService.update(params.id, body);
+    const model = modelService.update(id, body);
     
     if (!model) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
@@ -40,10 +42,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const success = modelService.delete(params.id);
+    const { id } = await params;
+    const success = modelService.delete(id);
     
     if (!success) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
