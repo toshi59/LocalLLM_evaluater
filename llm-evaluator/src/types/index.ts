@@ -1,6 +1,8 @@
 export interface LLMModel {
   id: string;
   name: string;
+  endpoint?: string;
+  apiKey?: string;
   size?: string;
   description?: string;
   createdAt: Date;
