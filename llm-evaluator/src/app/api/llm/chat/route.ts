@@ -18,6 +18,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
     }
 
+    if (!model.endpoint) {
+      return NextResponse.json({ error: 'Model endpoint not configured' }, { status: 400 });
+    }
+
     const requestBody = {
       model: model.name,
       messages: [
