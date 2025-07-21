@@ -67,15 +67,17 @@
 
 ## セットアップ
 
-### 前提条件
-- Node.js 18以上
-- OpenAI APIキー
+### ローカル開発
 
-### インストール
+#### 前提条件
+- Node.js 18以上
+- OpenAI APIキー（評価機能用）
+
+#### インストール
 
 1. リポジトリをクローン
 ```bash
-git clone <repository-url>
+git clone https://github.com/toshi59/LocalLLM_evaluater.git
 cd LocalLLM_evaluater/llm-evaluator
 ```
 
@@ -84,12 +86,41 @@ cd LocalLLM_evaluater/llm-evaluator
 npm install
 ```
 
-3. 開発サーバーを起動
+3. 環境変数を設定
+```bash
+cp .env.example .env.local
+# .env.localファイルを編集してAPIキーを設定
+```
+
+4. 開発サーバーを起動
 ```bash
 npm run dev
 ```
 
-4. ブラウザで http://localhost:3000 にアクセス
+5. ブラウザで http://localhost:3000 にアクセス
+
+### Vercelでのデプロイ
+
+このアプリケーションはVercelでの本番デプロイに対応しています。
+
+#### デプロイ手順
+
+1. **Vercelアカウント作成**: [vercel.com](https://vercel.com) でGitHub連携
+2. **プロジェクト作成**: 「New Project」→「LocalLLM_evaluater」を選択
+3. **設定**: 
+   - Framework Preset: Next.js (自動検出)
+   - Root Directory: `llm-evaluator`
+4. **環境変数設定** (必須):
+   - `NEXTAUTH_SECRET`: ランダムな文字列
+   - `NEXTAUTH_URL`: https://your-app.vercel.app
+   - その他必要な環境変数は`.env.example`を参照
+5. **KVデータベース作成**: Vercel管理画面で「Storage」→「Create KV Database」
+
+#### 本番環境の特徴
+- GitHub OAuth認証対応
+- Vercel KVによるデータ永続化
+- 自動HTTPS対応
+- CDN配信による高速化
 
 ### 初期設定
 
