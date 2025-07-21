@@ -13,6 +13,7 @@ export default function ResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [expandedEvaluations, setExpandedEvaluations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchEvaluations();
@@ -171,6 +172,16 @@ export default function ResultsPage() {
     setExpandedItems(newExpanded);
   };
 
+  const toggleEvaluationExpanded = (evaluationId: string) => {
+    const newExpanded = new Set(expandedEvaluations);
+    if (newExpanded.has(evaluationId)) {
+      newExpanded.delete(evaluationId);
+    } else {
+      newExpanded.add(evaluationId);
+    }
+    setExpandedEvaluations(newExpanded);
+  };
+
   const averageScores = calculateAverageScores();
 
   if (isLoading) {
@@ -275,100 +286,134 @@ export default function ResultsPage() {
         ) : (
           <div className="space-y-6">
             {evaluations.map((evaluation) => (
-              <div key={evaluation.id} className="bg-white rounded-lg shadow-md p-6 border">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-1">{evaluation.question.title}</h3>
-                    <div className="text-sm text-gray-600">
-                      モデル: <span className="font-medium">{evaluation.model.name}</span> | 
-                      評価日: {new Date(evaluation.evaluatedAt).toLocaleDateString('ja-JP')}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteEvaluation(evaluation.id)}
-                    className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                    title="この評価結果を削除"
-                  >
-                    削除
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-sm font-medium text-gray-700">質問:</h4>
-                      {evaluation.question.content.length > 200 && (
-                        <button
-                          onClick={() => toggleExpanded(`question-${evaluation.id}`)}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline"
-                        >
-                          {expandedItems.has(`question-${evaluation.id}`) ? '省略表示' : '全文表示'}
-                        </button>
-                      )}
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap">
-                      {expandedItems.has(`question-${evaluation.id}`) || evaluation.question.content.length <= 200
-                        ? evaluation.question.content
-                        : `${evaluation.question.content.substring(0, 200)}...`}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-sm font-medium text-gray-700">回答:</h4>
-                      {evaluation.response.length > 200 && (
-                        <button
-                          onClick={() => toggleExpanded(`response-${evaluation.id}`)}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline"
-                        >
-                          {expandedItems.has(`response-${evaluation.id}`) ? '省略表示' : '全文表示'}
-                        </button>
-                      )}
-                    </div>
-                    <div className="bg-blue-50 p-3 rounded-md text-sm whitespace-pre-wrap">
-                      {expandedItems.has(`response-${evaluation.id}`) || evaluation.response.length <= 200
-                        ? evaluation.response
-                        : `${evaluation.response.substring(0, 200)}...`}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-                  {[
-                    { key: 'accuracy', label: '正確性', value: evaluation.scores.accuracy },
-                    { key: 'completeness', label: '網羅性', value: evaluation.scores.completeness },
-                    { key: 'logic', label: '論理構成', value: evaluation.scores.logic },
-                    { key: 'japanese', label: '日本語', value: evaluation.scores.japanese },
-                    { key: 'overall', label: '総合', value: evaluation.scores.overall },
-                  ].map((item) => (
-                    <div key={item.key} className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">{item.label}</div>
-                      <div className={`text-lg font-semibold px-2 py-1 rounded ${getScoreColor(item.value)}`}>
-                        {item.value}
+              <div key={evaluation.id} className="bg-white rounded-lg shadow-md border">
+                <div className="p-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => toggleEvaluationExpanded(evaluation.id)}
+                        className="text-gray-600 hover:text-gray-800 text-xl font-bold w-8 h-8 flex items-center justify-center"
+                        title={expandedEvaluations.has(evaluation.id) ? "省略表示" : "詳細表示"}
+                      >
+                        {expandedEvaluations.has(evaluation.id) ? '−' : '+'}
+                      </button>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-1">{evaluation.question.title}</h3>
+                        <div className="text-sm text-gray-600">
+                          モデル: <span className="font-medium">{evaluation.model.name}</span> | 
+                          評価日: {new Date(evaluation.evaluatedAt).toLocaleDateString('ja-JP')}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-4 gap-1">
+                        {[
+                          { key: 'accuracy', value: evaluation.scores.accuracy },
+                          { key: 'completeness', value: evaluation.scores.completeness },
+                          { key: 'logic', value: evaluation.scores.logic },
+                          { key: 'japanese', value: evaluation.scores.japanese },
+                        ].map((item) => (
+                          <div key={item.key} className={`text-xs font-semibold px-2 py-1 rounded text-center ${getScoreColor(item.value)}`}>
+                            {item.value}
+                          </div>
+                        ))}
+                      </div>
+                      <div className={`text-sm font-bold px-2 py-1 rounded ${getScoreColor(evaluation.scores.overall)}`}>
+                        {evaluation.scores.overall}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteEvaluation(evaluation.id)}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 ml-2"
+                        title="この評価結果を削除"
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                {evaluation.comments && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">詳細コメント:</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[
-                        { key: 'accuracy', label: '正確性' },
-                        { key: 'completeness', label: '網羅性' },
-                        { key: 'logic', label: '論理構成' },
-                        { key: 'japanese', label: '日本語' },
-                        { key: 'overall', label: '総合' },
-                      ].map((item) => (
-                        evaluation.comments[item.key as keyof typeof evaluation.comments] && (
-                          <div key={item.key} className="bg-yellow-50 p-3 rounded-md">
-                            <div className="font-medium text-sm text-gray-800 mb-1">{item.label}:</div>
-                            <div className="text-xs text-gray-700">
-                              {evaluation.comments[item.key as keyof typeof evaluation.comments]}
+                {expandedEvaluations.has(evaluation.id) && (
+                  <div className="px-6 pb-6 border-t">
+                    <div className="pt-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-sm font-medium text-gray-700">質問:</h4>
+                            {evaluation.question.content.length > 200 && (
+                              <button
+                                onClick={() => toggleExpanded(`question-${evaluation.id}`)}
+                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {expandedItems.has(`question-${evaluation.id}`) ? '省略表示' : '全文表示'}
+                              </button>
+                            )}
+                          </div>
+                          <div className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap">
+                            {expandedItems.has(`question-${evaluation.id}`) || evaluation.question.content.length <= 200
+                              ? evaluation.question.content
+                              : `${evaluation.question.content.substring(0, 200)}...`}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-sm font-medium text-gray-700">回答:</h4>
+                            {evaluation.response.length > 200 && (
+                              <button
+                                onClick={() => toggleExpanded(`response-${evaluation.id}`)}
+                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {expandedItems.has(`response-${evaluation.id}`) ? '省略表示' : '全文表示'}
+                              </button>
+                            )}
+                          </div>
+                          <div className="bg-blue-50 p-3 rounded-md text-sm whitespace-pre-wrap">
+                            {expandedItems.has(`response-${evaluation.id}`) || evaluation.response.length <= 200
+                              ? evaluation.response
+                              : `${evaluation.response.substring(0, 200)}...`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                        {[
+                          { key: 'accuracy', label: '正確性', value: evaluation.scores.accuracy },
+                          { key: 'completeness', label: '網羅性', value: evaluation.scores.completeness },
+                          { key: 'logic', label: '論理構成', value: evaluation.scores.logic },
+                          { key: 'japanese', label: '日本語', value: evaluation.scores.japanese },
+                          { key: 'overall', label: '総合', value: evaluation.scores.overall },
+                        ].map((item) => (
+                          <div key={item.key} className="text-center">
+                            <div className="text-xs text-gray-600 mb-1">{item.label}</div>
+                            <div className={`text-lg font-semibold px-2 py-1 rounded ${getScoreColor(item.value)}`}>
+                              {item.value}
                             </div>
                           </div>
-                        )
-                      ))}
+                        ))}
+                      </div>
+
+                      {evaluation.comments && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">詳細コメント:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[
+                              { key: 'accuracy', label: '正確性' },
+                              { key: 'completeness', label: '網羅性' },
+                              { key: 'logic', label: '論理構成' },
+                              { key: 'japanese', label: '日本語' },
+                              { key: 'overall', label: '総合' },
+                            ].map((item) => (
+                              evaluation.comments[item.key as keyof typeof evaluation.comments] && (
+                                <div key={item.key} className="bg-yellow-50 p-3 rounded-md">
+                                  <div className="font-medium text-sm text-gray-800 mb-1">{item.label}:</div>
+                                  <div className="text-xs text-gray-700">
+                                    {evaluation.comments[item.key as keyof typeof evaluation.comments]}
+                                  </div>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
