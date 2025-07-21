@@ -50,9 +50,9 @@ export interface EvaluationResult extends Evaluation {
 export interface EvaluatorConfig {
   id: string;
   name: string;
-  endpoint: string;
-  apiKey: string;
-  model: string;
+  endpoint?: string;
+  apiKey?: string;
+  model?: string;
   createdAt: Date;
 }
 
