@@ -58,11 +58,20 @@ export async function POST(request: NextRequest) {
       'Authorization': `Bearer ${evaluatorConfig.apiKey}`,
     };
 
+    console.log('Making request to evaluator API:', {
+      endpoint: evaluatorConfig.endpoint,
+      model: evaluatorConfig.model,
+      hasApiKey: !!evaluatorConfig.apiKey,
+      apiKeyPrefix: evaluatorConfig.apiKey?.substring(0, 10) + '...'
+    });
+
     const response = await fetch(evaluatorConfig.endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
     });
+
+    console.log('API Response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -74,8 +83,11 @@ export async function POST(request: NextRequest) {
         model: evaluatorConfig.model
       });
       return NextResponse.json(
-        { error: `Failed to get evaluation from evaluator LLM: ${response.status} ${response.statusText}` },
-        { status: response.status }
+        { 
+          error: `Failed to get evaluation from evaluator LLM: ${response.status} ${response.statusText}`,
+          details: errorText 
+        },
+        { status: 500 }
       );
     }
 
@@ -146,10 +158,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in auto-evaluation:', {
       error: error instanceof Error ? error.message : error,
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      cause: error instanceof Error ? error.cause : undefined
     });
     return NextResponse.json(
-      { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      { 
+        error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        type: error instanceof Error ? error.name : 'Unknown',
+        details: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

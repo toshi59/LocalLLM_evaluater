@@ -199,6 +199,7 @@ export default function AnalyticsPage() {
     }));
   };
 
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -351,6 +352,7 @@ export default function AnalyticsPage() {
                 </div>
               );
             })()}
+
 
             {/* モデル性能比較 */}
             <div className="bg-white rounded-lg shadow-md p-6 border">

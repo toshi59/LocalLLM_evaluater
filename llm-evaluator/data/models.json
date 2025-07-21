@@ -7,17 +7,59 @@
     "createdAt": "2025-07-21T09:48:59.096Z"
   },
   {
-    "name": "gemma-3-27b-it",
-    "size": "27B",
+    "name": "DeepSeek-R1-0528",
+    "size": "671B",
     "description": "",
-    "id": "1753092046516",
-    "createdAt": "2025-07-21T10:00:46.516Z"
+    "id": "1753104989603",
+    "createdAt": "2025-07-21T13:36:29.603Z"
   },
   {
-    "name": "Llama-4-Maverick-17B-128E-Instruct",
-    "size": "17B",
+    "name": "Llama-3-ELYZA-JP-8B-GGUF",
+    "size": "8B",
     "description": "",
-    "id": "1753092141620",
-    "createdAt": "2025-07-21T10:02:21.620Z"
+    "id": "1753105038976",
+    "createdAt": "2025-07-21T13:37:18.976Z"
+  },
+  {
+    "name": "calm2-7B-chat-GGUF",
+    "size": "7B",
+    "description": "",
+    "id": "1753105064209",
+    "createdAt": "2025-07-21T13:37:44.209Z"
+  },
+  {
+    "name": "qwen3-8b",
+    "size": "8B",
+    "description": "",
+    "id": "1753105079180",
+    "createdAt": "2025-07-21T13:37:59.180Z"
+  },
+  {
+    "name": "qwen3-4b",
+    "size": "4B",
+    "description": "",
+    "id": "1753105086629",
+    "createdAt": "2025-07-21T13:38:06.629Z"
+  },
+  {
+    "name": "qwen3-1.7b",
+    "size": "1.7B",
+    "description": "",
+    "id": "1753105094719",
+    "createdAt": "2025-07-21T13:38:14.719Z"
+  },
+  {
+    "name": "GPT-4o",
+    "size": "不明",
+    "description": "",
+    "id": "1753107168750",
+    "createdAt": "2025-07-21T14:12:48.750Z"
+  },
+  {
+    "name": "o3",
+    "size": "不明",
+    "description": "",
+    "id": "1753107338844",
+    "createdAt": "2025-07-21T14:15:38.844Z"
   }
 ]

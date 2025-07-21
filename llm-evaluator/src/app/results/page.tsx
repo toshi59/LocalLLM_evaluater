@@ -182,6 +182,35 @@ export default function ResultsPage() {
     setExpandedEvaluations(newExpanded);
   };
 
+  // モデル×質問のマトリックスデータを計算
+  const calculateMatrixData = () => {
+    const matrixData: { [modelId: string]: { [questionId: string]: number | null } } = {};
+    
+    // 評価済みのモデルと質問のみを取得
+    const evaluatedModelIds = new Set(evaluations.map(e => e.modelId));
+    const evaluatedQuestionIds = new Set(evaluations.map(e => e.questionId));
+    
+    const evaluatedModels = models.filter(model => evaluatedModelIds.has(model.id));
+    const evaluatedQuestions = questions.filter(question => evaluatedQuestionIds.has(question.id));
+    
+    // 評価済みモデルと質問の組み合わせを初期化
+    evaluatedModels.forEach(model => {
+      matrixData[model.id] = {};
+      evaluatedQuestions.forEach(question => {
+        matrixData[model.id][question.id] = null;
+      });
+    });
+    
+    // 評価結果で埋める
+    evaluations.forEach(evaluation => {
+      if (matrixData[evaluation.modelId]) {
+        matrixData[evaluation.modelId][evaluation.questionId] = evaluation.scores.overall;
+      }
+    });
+    
+    return { matrixData, evaluatedModels, evaluatedQuestions };
+  };
+
   const averageScores = calculateAverageScores();
 
   if (isLoading) {
@@ -201,6 +230,101 @@ export default function ResultsPage() {
           </Link>
           <h1 className="text-3xl font-bold">評価結果</h1>
         </div>
+
+        {/* モデル×質問マトリックス */}
+        {(() => {
+          const { matrixData, evaluatedModels, evaluatedQuestions } = calculateMatrixData();
+          
+          if (evaluatedModels.length === 0 || evaluatedQuestions.length === 0) {
+            return null;
+          }
+          
+          return (
+            <div className="bg-white rounded-lg shadow-md p-6 border mb-8">
+              <h2 className="text-2xl font-bold mb-6 flex items-center">
+                <span className="text-2xl mr-2">🎯</span>
+                モデル×質問 総合得点マトリックス
+              </h2>
+              <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                <p className="text-sm text-blue-800 font-medium">
+                  💡 縦軸：モデル、横軸：質問で、各セルは総合得点を表示しています。空白は未評価です。
+                  <br />
+                  <span className="text-xs">※評価が1件以上あるモデル・質問のみ表示</span>
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="border border-gray-300 bg-gray-100 p-3 text-left font-medium text-gray-700 sticky left-0 z-10">
+                        モデル / 質問
+                      </th>
+                      {evaluatedQuestions.map(question => (
+                        <th key={question.id} className="border border-gray-300 bg-gray-100 p-2 text-center font-medium text-gray-700 min-w-[120px]">
+                          <div className="text-xs leading-tight" title={question.title}>
+                            {question.title.length > 20 
+                              ? `${question.title.substring(0, 20)}...`
+                              : question.title}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {evaluatedModels.map(model => {
+                      const modelEvaluationCount = evaluations.filter(e => e.modelId === model.id).length;
+                      return (
+                        <tr key={model.id}>
+                          <td className="border border-gray-300 bg-gray-50 p-3 font-medium text-gray-800 sticky left-0 z-10">
+                            <div className="text-sm">
+                              {model.name}
+                              <div className="text-xs text-gray-500">{modelEvaluationCount}件評価</div>
+                            </div>
+                          </td>
+                          {evaluatedQuestions.map(question => {
+                            const score = matrixData[model.id]?.[question.id];
+                            return (
+                              <td key={question.id} className="border border-gray-300 p-2 text-center">
+                                {score !== null && score !== undefined ? (
+                                  <div className={`inline-block px-3 py-2 rounded-lg text-sm font-bold ${getScoreColor(score)}`}>
+                                    {score.toFixed(1)}
+                                  </div>
+                                ) : (
+                                  <div className="text-gray-400 text-xs">
+                                    未評価
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-4 h-4 bg-green-100 rounded"></div>
+                    <span>4.5点以上</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-4 h-4 bg-yellow-100 rounded"></div>
+                    <span>3.0-4.4点</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-4 h-4 bg-red-100 rounded"></div>
+                    <span>3.0点未満</span>
+                  </div>
+                </div>
+                <div>
+                  表示組み合わせ数: {evaluatedModels.length} × {evaluatedQuestions.length} = {evaluatedModels.length * evaluatedQuestions.length}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="bg-white rounded-lg shadow-md p-6 border mb-8">
           <div className="flex justify-between items-center mb-4">
