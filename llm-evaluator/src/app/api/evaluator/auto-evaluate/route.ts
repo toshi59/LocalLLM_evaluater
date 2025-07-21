@@ -22,6 +22,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!evaluatorConfig.endpoint) {
+      return NextResponse.json(
+        { error: 'Evaluator endpoint not configured' },
+        { status: 400 }
+      );
+    }
+
     // 評価プロンプトを取得
     const promptService = evaluationPromptService;
     const selectedPrompt = promptId 
