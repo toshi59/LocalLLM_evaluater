@@ -34,20 +34,33 @@ export async function GET(request: NextRequest) {
 
     const detailedEvaluations: EvaluationResult[] = [];
     
-    for (const evaluation of evaluations) {
-      const question = isProduction 
-        ? await kvQuestionService.getById(evaluation.questionId)
-        : questionService.getById(evaluation.questionId);
-      const model = isProduction 
-        ? await kvModelService.getById(evaluation.modelId)
-        : modelService.getById(evaluation.modelId);
-        
-      if (question && model) {
-        detailedEvaluations.push({
-          ...evaluation,
-          question,
-          model
-        });
+    if (isProduction) {
+      // 本番環境: KVからデータ取得
+      for (const evaluation of evaluations) {
+        const question = await kvQuestionService.getById(evaluation.questionId);
+        const model = await kvModelService.getById(evaluation.modelId);
+          
+        if (question && model) {
+          detailedEvaluations.push({
+            ...evaluation,
+            question,
+            model
+          });
+        }
+      }
+    } else {
+      // ローカル環境: 同期的にデータ取得
+      for (const evaluation of evaluations) {
+        const question = questionService.getById(evaluation.questionId);
+        const model = modelService.getById(evaluation.modelId);
+          
+        if (question && model) {
+          detailedEvaluations.push({
+            ...evaluation,
+            question,
+            model
+          });
+        }
       }
     }
 
