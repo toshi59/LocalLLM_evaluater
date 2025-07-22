@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const model = process.env.NODE_ENV === 'production' 
       ? await kvModelService.getById(modelId)
-      : modelService.getById(modelId);
+      : await modelService.getById(modelId);
       
     if (!model) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });

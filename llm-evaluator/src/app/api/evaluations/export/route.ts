@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // モデルと質問の情報を取得
-    const models = modelService.getAll();
+    const models = await modelService.getAll();
     const questions = questionService.getAll();
 
     // CSV形式でデータを構築

@@ -49,10 +49,10 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
-      // ローカル環境: 同期的にデータ取得
+      // ローカル環境: 非同期でデータ取得（modelServiceもasyncのため）
       for (const evaluation of evaluations) {
         const question = questionService.getById(evaluation.questionId);
-        const model = modelService.getById(evaluation.modelId);
+        const model = await modelService.getById(evaluation.modelId);
           
         if (question && model) {
           detailedEvaluations.push({
