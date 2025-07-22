@@ -1,7 +1,8 @@
 // Vercel KV対応のデータアクセス層
-import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt } from '@/types';
+import { LLMModel, Question, Evaluation } from '@/types';
 
 // KVクライアントの動的インポート
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let kv: any = null;
 async function getKV() {
   if (!kv) {

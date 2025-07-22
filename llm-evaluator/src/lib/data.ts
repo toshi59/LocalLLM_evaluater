@@ -3,9 +3,11 @@ import path from 'path';
 import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt } from '@/types';
 
 // Vercel KVのインポート（本番環境のみ）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let kv: any = null;
 if (process.env.NODE_ENV === 'production' && process.env.KV_REST_API_URL) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     kv = require('@vercel/kv').kv;
   } catch (error) {
     console.warn('Vercel KV not available:', error);

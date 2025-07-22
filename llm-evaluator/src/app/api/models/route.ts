@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { modelService } from '@/lib/data';
 import { kvModelService } from '@/lib/kv-data';
-import { LLMModel } from '@/types';
 
 export async function GET() {
   try {
