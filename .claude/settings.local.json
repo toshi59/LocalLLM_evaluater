@@ -13,7 +13,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(vercel login:*)"
+      "Bash(vercel login:*)",
+      "Bash(vercel:*)"
     ],
     "deny": []
   }

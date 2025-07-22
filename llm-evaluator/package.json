@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
+    "@tanstack/react-query": "^5.83.0",
     "@vercel/kv": "^3.0.0",
     "next": "15.4.2",
     "next-auth": "^4.24.11",

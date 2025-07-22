@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
-import { EvaluationResult, LLMModel, Question } from '@/types';
+import { EvaluationResult } from '@/types';
+import { useEvaluationData } from '@/hooks/useEvaluationData';
 
 interface ModelStats {
   modelId: string;
@@ -31,28 +32,12 @@ interface QuestionStats {
 }
 
 export default function AnalyticsPage() {
-  const [evaluations, setEvaluations] = useState<EvaluationResult[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // React Queryを使用してデータを取得とキャッシュ
+  const { data, isLoading, error } = useEvaluationData();
+  const evaluations = data?.evaluations || [];
 
-  useEffect(() => {
-    fetchEvaluations();
-  }, []);
-
-  const fetchEvaluations = async () => {
-    try {
-      const response = await fetch('/api/evaluations/detailed');
-      if (response.ok) {
-        const data = await response.json();
-        setEvaluations(data);
-      }
-    } catch (error) {
-      console.error('Error fetching evaluations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const calculateModelStats = (): ModelStats[] => {
+  // メモ化されたモデル統計計算
+  const modelStats = useMemo((): ModelStats[] => {
     const modelMap = new Map<string, {
       modelName: string;
       evaluations: EvaluationResult[];
@@ -97,9 +82,10 @@ export default function AnalyticsPage() {
         }
       };
     }).sort((a, b) => b.averageScores.overall - a.averageScores.overall);
-  };
+  }, [evaluations]);
 
-  const calculateQuestionStats = (): QuestionStats[] => {
+  // メモ化された質問統計計算
+  const questionStats = useMemo((): QuestionStats[] => {
     const questionMap = new Map<string, {
       questionTitle: string;
       evaluations: EvaluationResult[];
@@ -144,7 +130,7 @@ export default function AnalyticsPage() {
         }
       };
     }).sort((a, b) => a.averageScores.overall - b.averageScores.overall);
-  };
+  }, [evaluations]);
 
   const getScoreColor = (score: number) => {
     if (score >= 4.5) return 'text-green-600 bg-green-100';
@@ -156,8 +142,8 @@ export default function AnalyticsPage() {
     return maxScore > 0 ? (score / maxScore) * 100 : 0;
   };
 
-  // スコア分布を計算
-  const calculateScoreDistribution = () => {
+  // メモ化されたスコア分布計算
+  const scoreDistribution = useMemo(() => {
     const distribution = {
       '5点': 0,
       '4点': 0,
@@ -172,10 +158,10 @@ export default function AnalyticsPage() {
     });
     
     return distribution;
-  };
+  }, [evaluations]);
 
-  // 時系列データを計算
-  const calculateTimeSeriesData = () => {
+  // メモ化された時系列データ計算
+  const timeSeriesData = useMemo(() => {
     const sortedEvaluations = [...evaluations].sort((a, b) => 
       new Date(a.evaluatedAt).getTime() - new Date(b.evaluatedAt).getTime()
     );
@@ -197,7 +183,7 @@ export default function AnalyticsPage() {
       average: scores.reduce((sum, score) => sum + score, 0) / scores.length,
       count: scores.length
     }));
-  };
+  }, [evaluations]);
 
 
   if (isLoading) {
@@ -208,10 +194,15 @@ export default function AnalyticsPage() {
     );
   }
 
-  const modelStats = calculateModelStats();
-  const questionStats = calculateQuestionStats();
-  const maxModelScore = Math.max(...modelStats.map(s => s.averageScores.overall), 5);
-  const maxQuestionScore = Math.max(...questionStats.map(s => s.averageScores.overall), 5);
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">
+          エラーが発生しました: {error.message}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -270,11 +261,10 @@ export default function AnalyticsPage() {
                 スコア分布
               </h2>
               {(() => {
-                const distribution = calculateScoreDistribution();
-                const maxCount = Math.max(...Object.values(distribution));
+                const maxCount = Math.max(...Object.values(scoreDistribution));
                 return (
                   <div className="space-y-4">
-                    {Object.entries(distribution).reverse().map(([score, count]) => {
+                    {Object.entries(scoreDistribution).reverse().map(([score, count]) => {
                       const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
                       const scoreNum = parseInt(score);
                       let barColor = 'bg-red-500';
@@ -306,7 +296,6 @@ export default function AnalyticsPage() {
 
             {/* 時系列データ */}
             {(() => {
-              const timeSeriesData = calculateTimeSeriesData();
               if (timeSeriesData.length <= 1) return null;
               
               const maxAverage = Math.max(...timeSeriesData.map(d => d.average));

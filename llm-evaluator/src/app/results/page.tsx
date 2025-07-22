@@ -1,85 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { EvaluationResult, LLMModel, Question } from '@/types';
+import { EvaluationResult } from '@/types';
+import { useEvaluationData, useFilteredEvaluations, useDeleteEvaluation } from '@/hooks/useEvaluationData';
 
 export default function ResultsPage() {
-  const [evaluations, setEvaluations] = useState<EvaluationResult[]>([]);
-  const [models, setModels] = useState<LLMModel[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    fetchEvaluations();
-    fetchModels();
-    fetchQuestions();
-  }, []);
+  // React Queryを使用してデータを取得とキャッシュ
+  const { data, isLoading, error } = useEvaluationData();
+  const { data: filteredEvaluations } = useFilteredEvaluations(selectedModelId, selectedQuestionId);
+  const deleteEvaluationMutation = useDeleteEvaluation();
 
-  useEffect(() => {
-    fetchFilteredEvaluations();
-  }, [selectedModelId, selectedQuestionId]);
+  // フィルタが適用されている場合はフィルタ済みデータ、そうでなければ全データを使用
+  const evaluations = filteredEvaluations || data?.evaluations || [];
+  const models = data?.models || [];
+  const questions = data?.questions || [];
 
-  const fetchEvaluations = async () => {
-    try {
-      const response = await fetch('/api/evaluations/detailed');
-      if (response.ok) {
-        const data = await response.json();
-        setEvaluations(data);
-      }
-    } catch (error) {
-      console.error('Error fetching evaluations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchFilteredEvaluations = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (selectedModelId) params.append('modelId', selectedModelId);
-      if (selectedQuestionId) params.append('questionId', selectedQuestionId);
-      
-      const response = await fetch(`/api/evaluations/detailed?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setEvaluations(data);
-      }
-    } catch (error) {
-      console.error('Error fetching filtered evaluations:', error);
-    }
-  };
-
-  const fetchModels = async () => {
-    try {
-      const response = await fetch('/api/models');
-      if (response.ok) {
-        const data = await response.json();
-        setModels(data);
-      }
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    }
-  };
-
-  const fetchQuestions = async () => {
-    try {
-      const response = await fetch('/api/questions');
-      if (response.ok) {
-        const data = await response.json();
-        setQuestions(data);
-      }
-    } catch (error) {
-      console.error('Error fetching questions:', error);
-    }
-  };
-
-  const calculateAverageScores = () => {
+  // メモ化された平均スコア計算
+  const averageScores = useMemo(() => {
     if (evaluations.length === 0) return null;
 
     const totals = evaluations.reduce(
@@ -101,7 +45,7 @@ export default function ResultsPage() {
       japanese: (totals.japanese / count).toFixed(1),
       overall: (totals.overall / count).toFixed(1),
     };
-  };
+  }, [evaluations]);
 
   const handleExportCSV = async () => {
     setIsExporting(true);
@@ -134,57 +78,21 @@ export default function ResultsPage() {
     }
   };
 
-  const handleDeleteEvaluation = async (evaluationId: string) => {
+  const handleDeleteEvaluation = useCallback(async (evaluationId: string) => {
     if (!confirm('この評価結果を削除しますか？')) return;
 
     try {
-      const response = await fetch(`/api/evaluations/${evaluationId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        // リストから削除
-        setEvaluations(prev => prev.filter(e => e.id !== evaluationId));
-        alert('評価結果を削除しました');
-      } else {
-        const error = await response.json();
-        alert(`エラー: ${error.error}`);
-      }
+      await deleteEvaluationMutation.mutateAsync(evaluationId);
+      alert('評価結果を削除しました');
     } catch (error) {
       console.error('Error deleting evaluation:', error);
-      alert('削除でエラーが発生しました');
+      alert(`削除でエラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
     }
-  };
+  }, [deleteEvaluationMutation]);
 
-  const getScoreColor = (score: number) => {
-    if (score >= 4.5) return 'text-green-600 bg-green-100';
-    if (score >= 3) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
-  };
-
-  const toggleExpanded = (evaluationId: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(evaluationId)) {
-      newExpanded.delete(evaluationId);
-    } else {
-      newExpanded.add(evaluationId);
-    }
-    setExpandedItems(newExpanded);
-  };
-
-  const toggleEvaluationExpanded = (evaluationId: string) => {
-    const newExpanded = new Set(expandedEvaluations);
-    if (newExpanded.has(evaluationId)) {
-      newExpanded.delete(evaluationId);
-    } else {
-      newExpanded.add(evaluationId);
-    }
-    setExpandedEvaluations(newExpanded);
-  };
-
-  // モデル×質問のマトリックスデータを計算
-  const calculateMatrixData = () => {
-    const matrixData: { [modelId: string]: { [questionId: string]: number | null } } = {};
+  // メモ化されたモデル×質問のマトリックスデータ計算
+  const matrixData = useMemo(() => {
+    const matrix: { [modelId: string]: { [questionId: string]: number | null } } = {};
     
     // 評価済みのモデルと質問のみを取得
     const evaluatedModelIds = new Set(evaluations.map(e => e.modelId));
@@ -195,23 +103,52 @@ export default function ResultsPage() {
     
     // 評価済みモデルと質問の組み合わせを初期化
     evaluatedModels.forEach(model => {
-      matrixData[model.id] = {};
+      matrix[model.id] = {};
       evaluatedQuestions.forEach(question => {
-        matrixData[model.id][question.id] = null;
+        matrix[model.id][question.id] = null;
       });
     });
     
     // 評価結果で埋める
     evaluations.forEach(evaluation => {
-      if (matrixData[evaluation.modelId]) {
-        matrixData[evaluation.modelId][evaluation.questionId] = evaluation.scores.overall;
+      if (matrix[evaluation.modelId]) {
+        matrix[evaluation.modelId][evaluation.questionId] = evaluation.scores.overall;
       }
     });
     
-    return { matrixData, evaluatedModels, evaluatedQuestions };
-  };
+    return { matrixData: matrix, evaluatedModels, evaluatedQuestions };
+  }, [evaluations, models, questions]);
 
-  const averageScores = calculateAverageScores();
+  // メモ化されたイベントハンドラー
+  const toggleExpanded = useCallback((evaluationId: string) => {
+    setExpandedItems(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(evaluationId)) {
+        newExpanded.delete(evaluationId);
+      } else {
+        newExpanded.add(evaluationId);
+      }
+      return newExpanded;
+    });
+  }, []);
+
+  const toggleEvaluationExpanded = useCallback((evaluationId: string) => {
+    setExpandedEvaluations(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(evaluationId)) {
+        newExpanded.delete(evaluationId);
+      } else {
+        newExpanded.add(evaluationId);
+      }
+      return newExpanded;
+    });
+  }, []);
+
+  const getScoreColor = useCallback((score: number) => {
+    if (score >= 4.5) return 'text-green-600 bg-green-100';
+    if (score >= 3) return 'text-yellow-600 bg-yellow-100';
+    return 'text-red-600 bg-red-100';
+  }, []);
 
   if (isLoading) {
     return (
@@ -220,6 +157,17 @@ export default function ResultsPage() {
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">
+          エラーが発生しました: {error.message}
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -233,7 +181,7 @@ export default function ResultsPage() {
 
         {/* モデル×質問マトリックス */}
         {(() => {
-          const { matrixData, evaluatedModels, evaluatedQuestions } = calculateMatrixData();
+          const { matrixData: matrix, evaluatedModels, evaluatedQuestions } = matrixData;
           
           if (evaluatedModels.length === 0 || evaluatedQuestions.length === 0) {
             return null;
@@ -287,7 +235,7 @@ export default function ResultsPage() {
                             </div>
                           </td>
                           {evaluatedQuestions.map(question => {
-                            const score = matrixData[model.id]?.[question.id];
+                            const score = matrix[model.id]?.[question.id];
                             return (
                               <td key={question.id} className="border border-gray-300 p-2 text-center">
                                 {score !== null && score !== undefined ? (
@@ -305,7 +253,7 @@ export default function ResultsPage() {
                           <td className="border border-gray-300 p-2 text-center bg-gradient-to-r from-blue-50 to-blue-100">
                             {(() => {
                               const modelScores = evaluatedQuestions
-                                .map(question => matrixData[model.id]?.[question.id])
+                                .map(question => matrix[model.id]?.[question.id])
                                 .filter(score => score !== null && score !== undefined);
                               
                               if (modelScores.length === 0) {
