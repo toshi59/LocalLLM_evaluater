@@ -1,11 +1,26 @@
 // Vercel KV対応のデータアクセス層
-import { kv } from '@vercel/kv';
 import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt } from '@/types';
+
+// KVクライアントの動的インポート
+let kv: any = null;
+async function getKV() {
+  if (!kv) {
+    try {
+      const kvModule = await import('@vercel/kv');
+      kv = kvModule.kv;
+    } catch (error) {
+      console.error('Failed to import @vercel/kv:', error);
+      throw new Error('KV client not available');
+    }
+  }
+  return kv;
+}
 
 // KVデータアクセスヘルパー
 async function getData<T>(key: string, fallback: T[] = []): Promise<T[]> {
   try {
-    const data = await kv.get(key);
+    const kvClient = await getKV();
+    const data = await kvClient.get(key);
     return data || fallback;
   } catch (error) {
     console.error(`Error reading from KV (${key}):`, error);
@@ -15,7 +30,8 @@ async function getData<T>(key: string, fallback: T[] = []): Promise<T[]> {
 
 async function setData<T>(key: string, data: T[]): Promise<void> {
   try {
-    await kv.set(key, data);
+    const kvClient = await getKV();
+    await kvClient.set(key, data);
   } catch (error) {
     console.error(`Error writing to KV (${key}):`, error);
     throw error;
