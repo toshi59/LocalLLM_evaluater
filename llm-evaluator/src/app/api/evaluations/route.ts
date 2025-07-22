@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { evaluationService } from '@/lib/data';
+import { kvEvaluationService } from '@/lib/kv-data';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,13 +8,28 @@ export async function GET(request: NextRequest) {
     const questionId = searchParams.get('questionId');
     const modelId = searchParams.get('modelId');
 
+    // 本番環境ではKVを使用
+    const service = process.env.NODE_ENV === 'production' ? kvEvaluationService : evaluationService;
+    
     let evaluations;
-    if (questionId) {
-      evaluations = evaluationService.getByQuestion(questionId);
-    } else if (modelId) {
-      evaluations = evaluationService.getByModel(modelId);
+    if (process.env.NODE_ENV === 'production') {
+      const allEvaluations = await service.getAll();
+      if (questionId) {
+        evaluations = allEvaluations.filter(e => e.questionId === questionId);
+      } else if (modelId) {
+        evaluations = allEvaluations.filter(e => e.modelId === modelId);
+      } else {
+        evaluations = allEvaluations;
+      }
     } else {
-      evaluations = evaluationService.getAll();
+      // ローカル環境
+      if (questionId) {
+        evaluations = evaluationService.getByQuestion(questionId);
+      } else if (modelId) {
+        evaluations = evaluationService.getByModel(modelId);
+      } else {
+        evaluations = evaluationService.getAll();
+      }
     }
 
     return NextResponse.json(evaluations);
@@ -34,13 +50,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const evaluation = evaluationService.create({
+    const evaluationData = {
       questionId: body.questionId,
       modelId: body.modelId,
       response: body.response,
       scores: body.scores,
       comments: body.comments || {},
-    });
+      evaluatedAt: new Date(),
+    };
+
+    // 本番環境ではKVを使用
+    const evaluation = process.env.NODE_ENV === 'production' 
+      ? await kvEvaluationService.create(evaluationData)
+      : evaluationService.create(evaluationData);
 
     return NextResponse.json(evaluation, { status: 201 });
   } catch (error) {

@@ -2,12 +2,70 @@ import fs from 'fs';
 import path from 'path';
 import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt } from '@/types';
 
+// Vercel KVのインポート（本番環境のみ）
+let kv: any = null;
+if (process.env.NODE_ENV === 'production' && process.env.KV_REST_API_URL) {
+  try {
+    kv = require('@vercel/kv').kv;
+  } catch (error) {
+    console.warn('Vercel KV not available:', error);
+  }
+}
+
 const DATA_DIR = path.join(process.cwd(), 'data');
 const MODELS_FILE = path.join(DATA_DIR, 'models.json');
 const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
 const EVALUATIONS_FILE = path.join(DATA_DIR, 'evaluations.json');
 const EVALUATOR_CONFIG_FILE = path.join(DATA_DIR, 'evaluator-config.json');
 const EVALUATION_PROMPTS_FILE = path.join(DATA_DIR, 'evaluation-prompts.json');
+
+// データストレージのヘルパー関数
+async function getData<T>(key: string, fallback: T[] = []): Promise<T[]> {
+  if (kv) {
+    try {
+      const data = await kv.get(key);
+      return data || fallback;
+    } catch (error) {
+      console.error(`Error reading from KV (${key}):`, error);
+      return fallback;
+    }
+  } else {
+    // ローカル環境：JSONファイル
+    const filePath = getFilePath(key);
+    try {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(data);
+    } catch {
+      return fallback;
+    }
+  }
+}
+
+async function setData<T>(key: string, data: T[]): Promise<void> {
+  if (kv) {
+    try {
+      await kv.set(key, data);
+    } catch (error) {
+      console.error(`Error writing to KV (${key}):`, error);
+      throw error;
+    }
+  } else {
+    // ローカル環境：JSONファイル
+    const filePath = getFilePath(key);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  }
+}
+
+function getFilePath(key: string): string {
+  const fileMap: { [key: string]: string } = {
+    'models': MODELS_FILE,
+    'questions': QUESTIONS_FILE,
+    'evaluations': EVALUATIONS_FILE,
+    'evaluator-config': EVALUATOR_CONFIG_FILE,
+    'evaluation-prompts': EVALUATION_PROMPTS_FILE
+  };
+  return fileMap[key] || path.join(DATA_DIR, `${key}.json`);
+}
 
 // データディレクトリとファイルを初期化
 function initializeData() {
@@ -45,45 +103,45 @@ function writeJsonFile<T>(filePath: string, data: T[]): void {
 
 // LLMモデル管理
 export const modelService = {
-  getAll: (): LLMModel[] => {
-    initializeData();
-    return readJsonFile<LLMModel>(MODELS_FILE);
+  getAll: async (): Promise<LLMModel[]> => {
+    if (!kv) initializeData();
+    return await getData<LLMModel>('models');
   },
   
-  getById: (id: string): LLMModel | null => {
-    const models = modelService.getAll();
+  getById: async (id: string): Promise<LLMModel | null> => {
+    const models = await modelService.getAll();
     return models.find(model => model.id === id) || null;
   },
   
-  create: (model: Omit<LLMModel, 'id' | 'createdAt'>): LLMModel => {
-    const models = modelService.getAll();
+  create: async (model: Omit<LLMModel, 'id' | 'createdAt'>): Promise<LLMModel> => {
+    const models = await modelService.getAll();
     const newModel: LLMModel = {
       ...model,
       id: Date.now().toString(),
       createdAt: new Date(),
     };
     models.push(newModel);
-    writeJsonFile(MODELS_FILE, models);
+    await setData('models', models);
     return newModel;
   },
   
-  update: (id: string, updates: Partial<Omit<LLMModel, 'id' | 'createdAt'>>): LLMModel | null => {
-    const models = modelService.getAll();
+  update: async (id: string, updates: Partial<Omit<LLMModel, 'id' | 'createdAt'>>): Promise<LLMModel | null> => {
+    const models = await modelService.getAll();
     const index = models.findIndex(model => model.id === id);
     if (index === -1) return null;
     
     models[index] = { ...models[index], ...updates };
-    writeJsonFile(MODELS_FILE, models);
+    await setData('models', models);
     return models[index];
   },
   
-  delete: (id: string): boolean => {
-    const models = modelService.getAll();
+  delete: async (id: string): Promise<boolean> => {
+    const models = await modelService.getAll();
     const index = models.findIndex(model => model.id === id);
     if (index === -1) return false;
     
     models.splice(index, 1);
-    writeJsonFile(MODELS_FILE, models);
+    await setData('models', models);
     return true;
   }
 };

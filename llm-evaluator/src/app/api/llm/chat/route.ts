@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { modelService } from '@/lib/data';
+import { kvModelService } from '@/lib/kv-data';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const model = modelService.getById(modelId);
+    const model = process.env.NODE_ENV === 'production' 
+      ? await kvModelService.getById(modelId)
+      : modelService.getById(modelId);
+      
     if (!model) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
     }
