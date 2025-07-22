@@ -19,6 +19,17 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { endpoint, apiKey, model } = body;
 
+    // 本番環境では環境変数経由での設定のみ許可
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { 
+          error: 'Configuration update not available in production. Use environment variables instead.',
+          message: 'Please set OPENAI_API_KEY environment variable in Vercel dashboard.'
+        },
+        { status: 403 }
+      );
+    }
+
     if (!endpoint || !apiKey || !model) {
       return NextResponse.json(
         { error: 'Endpoint, API key, and model are required' },
