@@ -12,7 +12,11 @@ Value: ozynA9COunoCKWt4NASvecgb7+Enf5FSFO2a/NhvMZM=
 Name: NEXTAUTH_URL  
 Value: https://llm-evaluator-toshi59.vercel.app
 
+Name: OPENAI_API_KEY
+Value: your-new-openai-api-key-here
+
 ※ NEXTAUTH_URLはVercelプロジェクト作成時に決まるURLに変更してください
+※ OPENAI_API_KEYは新しく生成したAPIキーに変更してください
 
 
 🏠 ローカル開発用 .env.local:

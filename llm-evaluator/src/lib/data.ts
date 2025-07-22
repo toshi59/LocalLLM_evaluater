@@ -194,7 +194,14 @@ export const evaluatorConfigService = {
     initializeData();
     try {
       const data = fs.readFileSync(EVALUATOR_CONFIG_FILE, 'utf-8');
-      return JSON.parse(data);
+      const config = JSON.parse(data);
+      
+      // 本番環境では環境変数からAPIキーを取得
+      if (process.env.OPENAI_API_KEY && !config.apiKey) {
+        config.apiKey = process.env.OPENAI_API_KEY;
+      }
+      
+      return config;
     } catch {
       return null;
     }

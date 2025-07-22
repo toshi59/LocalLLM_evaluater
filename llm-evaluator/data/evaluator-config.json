@@ -3,6 +3,5 @@
   "name": "OpenAI GPT-4o",
   "createdAt": "2025-07-21T00:00:00.000Z",
   "endpoint": "https://api.openai.com/v1/chat/completions",
-  "apiKey": "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",
   "model": "gpt-4o"
 }
