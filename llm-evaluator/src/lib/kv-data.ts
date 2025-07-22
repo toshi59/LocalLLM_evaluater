@@ -1,5 +1,5 @@
 // Vercel KV対応のデータアクセス層
-import { LLMModel, Question, Evaluation, EvaluatorConfig } from '@/types';
+import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt } from '@/types';
 
 // KVクライアントの動的インポート
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -196,5 +196,49 @@ export const kvEvaluatorConfigService = {
       console.error('Error updating evaluator config in KV:', error);
       throw error;
     }
+  }
+};
+
+// 評価プロンプトサービス
+export const kvEvaluationPromptService = {
+  getAll: async (): Promise<EvaluationPrompt[]> => {
+    return await getData<EvaluationPrompt>('evaluation-prompts');
+  },
+  
+  getById: async (id: string): Promise<EvaluationPrompt | null> => {
+    const prompts = await kvEvaluationPromptService.getAll();
+    return prompts.find(prompt => prompt.id === id) || null;
+  },
+  
+  create: async (prompt: Omit<EvaluationPrompt, 'id' | 'createdAt'>): Promise<EvaluationPrompt> => {
+    const prompts = await kvEvaluationPromptService.getAll();
+    const newPrompt: EvaluationPrompt = {
+      ...prompt,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+    };
+    prompts.push(newPrompt);
+    await setData('evaluation-prompts', prompts);
+    return newPrompt;
+  },
+  
+  update: async (id: string, updates: Partial<Omit<EvaluationPrompt, 'id' | 'createdAt'>>): Promise<EvaluationPrompt | null> => {
+    const prompts = await kvEvaluationPromptService.getAll();
+    const index = prompts.findIndex(prompt => prompt.id === id);
+    if (index === -1) return null;
+    
+    prompts[index] = { ...prompts[index], ...updates };
+    await setData('evaluation-prompts', prompts);
+    return prompts[index];
+  },
+  
+  delete: async (id: string): Promise<boolean> => {
+    const prompts = await kvEvaluationPromptService.getAll();
+    const index = prompts.findIndex(prompt => prompt.id === id);
+    if (index === -1) return false;
+    
+    prompts.splice(index, 1);
+    await setData('evaluation-prompts', prompts);
+    return true;
   }
 };

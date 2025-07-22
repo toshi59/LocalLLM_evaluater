@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { evaluationPromptService } from '@/lib/data';
+import { kvEvaluationPromptService } from '@/lib/kv-data';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -7,11 +8,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { name, prompt, description } = body;
 
-    const updatedPrompt = evaluationPromptService.update(id, {
-      name,
-      prompt,
-      description
-    });
+    const updatedPrompt = process.env.NODE_ENV === 'production'
+      ? await kvEvaluationPromptService.update(id, { name, prompt, description })
+      : evaluationPromptService.update(id, { name, prompt, description });
 
     if (!updatedPrompt) {
       return NextResponse.json(
@@ -34,7 +33,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const { id } = await params;
     
-    const success = evaluationPromptService.delete(id);
+    const success = process.env.NODE_ENV === 'production'
+      ? await kvEvaluationPromptService.delete(id)
+      : evaluationPromptService.delete(id);
     if (!success) {
       return NextResponse.json(
         { error: 'Prompt not found' },
