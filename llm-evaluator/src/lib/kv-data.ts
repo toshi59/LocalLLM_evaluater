@@ -1,5 +1,5 @@
 // Vercel KV対応のデータアクセス層
-import { LLMModel, Question, Evaluation } from '@/types';
+import { LLMModel, Question, Evaluation, EvaluatorConfig } from '@/types';
 
 // KVクライアントの動的インポート
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -157,5 +157,44 @@ export const kvEvaluationService = {
     evaluations.splice(index, 1);
     await setData('evaluations', evaluations);
     return true;
+  }
+};
+
+// 評価設定サービス
+export const kvEvaluatorConfigService = {
+  get: async (): Promise<EvaluatorConfig | null> => {
+    try {
+      const kvClient = await getKV();
+      const config = await kvClient.get('evaluator-config');
+      
+      // 本番環境では環境変数からAPIキーを取得
+      if (config && process.env.OPENAI_API_KEY && !config.apiKey) {
+        config.apiKey = process.env.OPENAI_API_KEY;
+      }
+      
+      return config;
+    } catch (error) {
+      console.error('Error reading evaluator config from KV:', error);
+      return null;
+    }
+  },
+  
+  update: async (updates: Partial<Omit<EvaluatorConfig, 'id' | 'createdAt'>>): Promise<EvaluatorConfig> => {
+    const existing = await kvEvaluatorConfigService.get();
+    const updatedConfig: EvaluatorConfig = {
+      id: existing?.id || 'openai-gpt4o',
+      name: existing?.name || 'OpenAI GPT-4o',
+      createdAt: existing?.createdAt || new Date(),
+      ...updates,
+    };
+    
+    try {
+      const kvClient = await getKV();
+      await kvClient.set('evaluator-config', updatedConfig);
+      return updatedConfig;
+    } catch (error) {
+      console.error('Error updating evaluator config in KV:', error);
+      throw error;
+    }
   }
 };

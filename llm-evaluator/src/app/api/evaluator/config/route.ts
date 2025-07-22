@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { evaluatorConfigService } from '@/lib/data';
+import { kvEvaluatorConfigService } from '@/lib/kv-data';
 
 export async function GET() {
   try {
-    const config = evaluatorConfigService.get();
+    const config = process.env.NODE_ENV === 'production' 
+      ? await kvEvaluatorConfigService.get()
+      : evaluatorConfigService.get();
     return NextResponse.json(config);
   } catch (error) {
     console.error('Error fetching evaluator config:', error);
@@ -19,29 +22,21 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { endpoint, apiKey, model } = body;
 
-    // 本番環境では環境変数経由での設定のみ許可
-    if (process.env.NODE_ENV === 'production') {
+    if (!endpoint || !model) {
       return NextResponse.json(
-        { 
-          error: 'Configuration update not available in production. Use environment variables instead.',
-          message: 'Please set OPENAI_API_KEY environment variable in Vercel dashboard.'
-        },
-        { status: 403 }
-      );
-    }
-
-    if (!endpoint || !apiKey || !model) {
-      return NextResponse.json(
-        { error: 'Endpoint, API key, and model are required' },
+        { error: 'Endpoint and model are required' },
         { status: 400 }
       );
     }
 
-    const updatedConfig = evaluatorConfigService.update({
-      endpoint,
-      apiKey,
-      model
-    });
+    // 本番環境ではAPIキーは環境変数から取得
+    const configData = process.env.NODE_ENV === 'production' 
+      ? { endpoint, model } // APIキーは環境変数から自動取得
+      : { endpoint, apiKey, model };
+
+    const updatedConfig = process.env.NODE_ENV === 'production'
+      ? await kvEvaluatorConfigService.update(configData)
+      : evaluatorConfigService.update(configData);
 
     return NextResponse.json(updatedConfig);
   } catch (error) {
