@@ -111,7 +111,9 @@ function writeJsonFile<T>(filePath: string, data: T[]): void {
 export const modelService = {
   getAll: async (): Promise<LLMModel[]> => {
     if (!kv) initializeData();
-    return await getData<LLMModel>('models');
+    const models = await getData<LLMModel>('models');
+    // 作成日時の降順でソート（新しいものが先頭）
+    return models.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
   
   getById: async (id: string): Promise<LLMModel | null> => {
@@ -156,7 +158,9 @@ export const modelService = {
 export const questionService = {
   getAll: async (): Promise<Question[]> => {
     if (!kv) initializeData();
-    return await getData<Question>('questions');
+    const questions = await getData<Question>('questions');
+    // 作成日時の降順でソート（新しいものが先頭）
+    return questions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
   
   getById: async (id: string): Promise<Question | null> => {
@@ -201,7 +205,9 @@ export const questionService = {
 export const evaluationService = {
   getAll: async (): Promise<Evaluation[]> => {
     if (!kv) initializeData();
-    return await getData<Evaluation>('evaluations');
+    const evaluations = await getData<Evaluation>('evaluations');
+    // 評価日時の降順でソート（新しいものが先頭）
+    return evaluations.sort((a, b) => new Date(b.evaluatedAt).getTime() - new Date(a.evaluatedAt).getTime());
   },
   
   getById: async (id: string): Promise<Evaluation | null> => {
@@ -288,7 +294,9 @@ export const evaluatorConfigService = {
 export const evaluationPromptService = {
   getAll: async (): Promise<EvaluationPrompt[]> => {
     if (!kv) initializeData();
-    return await getData<EvaluationPrompt>('evaluation-prompts');
+    const prompts = await getData<EvaluationPrompt>('evaluation-prompts');
+    // 作成日時の降順でソート（新しいものが先頭）
+    return prompts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
   
   getById: async (id: string): Promise<EvaluationPrompt | null> => {
@@ -333,7 +341,9 @@ export const evaluationPromptService = {
 export const evaluatorService = {
   getAll: async (): Promise<Evaluator[]> => {
     if (!kv) initializeData();
-    return await getData<Evaluator>('evaluators');
+    const evaluators = await getData<Evaluator>('evaluators');
+    // 作成日時の降順でソート（新しいものが先頭）
+    return evaluators.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
   
   getById: async (id: string): Promise<Evaluator | null> => {
@@ -378,7 +388,9 @@ export const evaluatorService = {
 export const evaluationEnvironmentService = {
   getAll: async (): Promise<EvaluationEnvironment[]> => {
     if (!kv) initializeData();
-    return await getData<EvaluationEnvironment>('evaluation-environments');
+    const environments = await getData<EvaluationEnvironment>('evaluation-environments');
+    // 作成日時の降順でソート（新しいものが先頭）
+    return environments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
   
   getById: async (id: string): Promise<EvaluationEnvironment | null> => {
