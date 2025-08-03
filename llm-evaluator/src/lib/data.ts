@@ -113,7 +113,12 @@ export const modelService = {
     if (!kv) initializeData();
     const models = await getData<LLMModel>('models');
     // 作成日時の降順でソート（新しいものが先頭）
-    return models.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // 本番環境との互換性のため、evaluatedAtフィールドも考慮
+    return models.sort((a, b) => {
+      const dateA = new Date((a as any).evaluatedAt || a.createdAt);
+      const dateB = new Date((b as any).evaluatedAt || b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   },
   
   getById: async (id: string): Promise<LLMModel | null> => {
@@ -123,11 +128,14 @@ export const modelService = {
   
   create: async (model: Omit<LLMModel, 'id' | 'createdAt'>): Promise<LLMModel> => {
     const models = await modelService.getAll();
+    const createdAt = new Date();
     const newModel: LLMModel = {
       ...model,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date(),
+      createdAt,
     };
+    // 本番環境との互換性のため、evaluatedAtフィールドも設定
+    (newModel as any).evaluatedAt = createdAt;
     models.unshift(newModel); // 先頭に追加
     await setData('models', models);
     return newModel;
@@ -160,7 +168,12 @@ export const questionService = {
     if (!kv) initializeData();
     const questions = await getData<Question>('questions');
     // 作成日時の降順でソート（新しいものが先頭）
-    return questions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // 本番環境との互換性のため、evaluatedAtフィールドも考慮
+    return questions.sort((a, b) => {
+      const dateA = new Date((a as any).evaluatedAt || a.createdAt);
+      const dateB = new Date((b as any).evaluatedAt || b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   },
   
   getById: async (id: string): Promise<Question | null> => {
@@ -170,11 +183,14 @@ export const questionService = {
   
   create: async (question: Omit<Question, 'id' | 'createdAt'>): Promise<Question> => {
     const questions = await questionService.getAll();
+    const createdAt = new Date();
     const newQuestion: Question = {
       ...question,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date(),
+      createdAt,
     };
+    // 本番環境との互換性のため、evaluatedAtフィールドも設定
+    (newQuestion as any).evaluatedAt = createdAt;
     questions.unshift(newQuestion); // 先頭に追加
     await setData('questions', questions);
     return newQuestion;
@@ -296,7 +312,12 @@ export const evaluationPromptService = {
     if (!kv) initializeData();
     const prompts = await getData<EvaluationPrompt>('evaluation-prompts');
     // 作成日時の降順でソート（新しいものが先頭）
-    return prompts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // 本番環境との互換性のため、evaluatedAtフィールドも考慮
+    return prompts.sort((a, b) => {
+      const dateA = new Date((a as any).evaluatedAt || a.createdAt);
+      const dateB = new Date((b as any).evaluatedAt || b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   },
   
   getById: async (id: string): Promise<EvaluationPrompt | null> => {
@@ -343,7 +364,12 @@ export const evaluatorService = {
     if (!kv) initializeData();
     const evaluators = await getData<Evaluator>('evaluators');
     // 作成日時の降順でソート（新しいものが先頭）
-    return evaluators.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // 本番環境との互換性のため、evaluatedAtフィールドも考慮
+    return evaluators.sort((a, b) => {
+      const dateA = new Date((a as any).evaluatedAt || a.createdAt);
+      const dateB = new Date((b as any).evaluatedAt || b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   },
   
   getById: async (id: string): Promise<Evaluator | null> => {
@@ -390,7 +416,12 @@ export const evaluationEnvironmentService = {
     if (!kv) initializeData();
     const environments = await getData<EvaluationEnvironment>('evaluation-environments');
     // 作成日時の降順でソート（新しいものが先頭）
-    return environments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // 本番環境との互換性のため、evaluatedAtフィールドも考慮
+    return environments.sort((a, b) => {
+      const dateA = new Date((a as any).evaluatedAt || a.createdAt);
+      const dateB = new Date((b as any).evaluatedAt || b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   },
   
   getById: async (id: string): Promise<EvaluationEnvironment | null> => {
