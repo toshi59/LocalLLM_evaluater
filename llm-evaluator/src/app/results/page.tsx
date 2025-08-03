@@ -3,11 +3,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { EvaluationResult } from '@/types';
-import { useEvaluationData, useFilteredEvaluations, useDeleteEvaluation } from '@/hooks/useEvaluationData';
+import { useEvaluationData, useDeleteEvaluation } from '@/hooks/useEvaluationData';
 
 export default function ResultsPage() {
-  const [selectedModelId, setSelectedModelId] = useState<string>('');
-  const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<string>>(new Set());
@@ -15,13 +15,27 @@ export default function ResultsPage() {
 
   // React Queryを使用してデータを取得とキャッシュ
   const { data, isLoading, error } = useEvaluationData();
-  const { data: filteredEvaluations } = useFilteredEvaluations(selectedModelId, selectedQuestionId);
   const deleteEvaluationMutation = useDeleteEvaluation();
 
-  // フィルタが適用されている場合はフィルタ済みデータ、そうでなければ全データを使用
-  const evaluations = filteredEvaluations || data?.evaluations || [];
+  // 全データを使用
+  const allEvaluations = data?.evaluations || [];
   const models = data?.models || [];
   const questions = data?.questions || [];
+
+  // フィルタリングロジック
+  const evaluations = useMemo(() => {
+    let filtered = allEvaluations;
+    
+    if (selectedModelIds.length > 0) {
+      filtered = filtered.filter(evaluation => selectedModelIds.includes(evaluation.modelId));
+    }
+    
+    if (selectedQuestionIds.length > 0) {
+      filtered = filtered.filter(evaluation => selectedQuestionIds.includes(evaluation.questionId));
+    }
+    
+    return filtered;
+  }, [allEvaluations, selectedModelIds, selectedQuestionIds]);
 
   // メモ化された平均スコア計算
   const averageScores = useMemo(() => {
@@ -52,8 +66,8 @@ export default function ResultsPage() {
     setIsExporting(true);
     try {
       const params = new URLSearchParams();
-      if (selectedModelId) params.append('modelId', selectedModelId);
-      if (selectedQuestionId) params.append('questionId', selectedQuestionId);
+      selectedModelIds.forEach(id => params.append('modelId', id));
+      selectedQuestionIds.forEach(id => params.append('questionId', id));
       
       const response = await fetch(`/api/evaluations/export?${params.toString()}`);
       
@@ -350,40 +364,70 @@ export default function ResultsPage() {
               {isExporting ? 'エクスポート中...' : 'CSV出力'}
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                モデルで絞り込み
-              </label>
-              <select
-                value={selectedModelId}
-                onChange={(e) => setSelectedModelId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">全てのモデル</option>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  モデルで絞り込み ({selectedModelIds.length}個選択)
+                </label>
+                <button
+                  onClick={() => setSelectedModelIds([])}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  全て解除
+                </button>
+              </div>
+              <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
                 {models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
+                  <label key={model.id} className="flex items-center space-x-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedModelIds.includes(model.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedModelIds([...selectedModelIds, model.id]);
+                        } else {
+                          setSelectedModelIds(selectedModelIds.filter(id => id !== model.id));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{model.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                質問で絞り込み
-              </label>
-              <select
-                value={selectedQuestionId}
-                onChange={(e) => setSelectedQuestionId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">全ての質問</option>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  質問で絞り込み ({selectedQuestionIds.length}個選択)
+                </label>
+                <button
+                  onClick={() => setSelectedQuestionIds([])}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  全て解除
+                </button>
+              </div>
+              <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
                 {questions.map((question) => (
-                  <option key={question.id} value={question.id}>
-                    {question.title}
-                  </option>
+                  <label key={question.id} className="flex items-center space-x-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedQuestionIds.includes(question.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedQuestionIds([...selectedQuestionIds, question.id]);
+                        } else {
+                          setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== question.id));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="truncate" title={question.title}>{question.title}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
         </div>
