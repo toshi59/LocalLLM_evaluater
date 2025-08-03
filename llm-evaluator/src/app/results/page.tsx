@@ -6,8 +6,14 @@ import { EvaluationResult } from '@/types';
 import { useEvaluationData, useDeleteEvaluation } from '@/hooks/useEvaluationData';
 
 export default function ResultsPage() {
-  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
-  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+  // 一時的なフィルタ状態（UI表示用）
+  const [tempSelectedModelIds, setTempSelectedModelIds] = useState<string[]>([]);
+  const [tempSelectedQuestionIds, setTempSelectedQuestionIds] = useState<string[]>([]);
+  
+  // 実際に適用されるフィルタ状態
+  const [appliedModelIds, setAppliedModelIds] = useState<string[]>([]);
+  const [appliedQuestionIds, setAppliedQuestionIds] = useState<string[]>([]);
+  
   const [isExporting, setIsExporting] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<string>>(new Set());
@@ -22,20 +28,34 @@ export default function ResultsPage() {
   const models = data?.models || [];
   const questions = data?.questions || [];
 
-  // フィルタリングロジック
+  // フィルタ実行関数
+  const applyFilters = () => {
+    setAppliedModelIds(tempSelectedModelIds);
+    setAppliedQuestionIds(tempSelectedQuestionIds);
+  };
+
+  // フィルタリセット関数
+  const resetFilters = () => {
+    setTempSelectedModelIds([]);
+    setTempSelectedQuestionIds([]);
+    setAppliedModelIds([]);
+    setAppliedQuestionIds([]);
+  };
+
+  // フィルタリングロジック（適用されたフィルタで実行）
   const evaluations = useMemo(() => {
     let filtered = allEvaluations;
     
-    if (selectedModelIds.length > 0) {
-      filtered = filtered.filter(evaluation => selectedModelIds.includes(evaluation.modelId));
+    if (appliedModelIds.length > 0) {
+      filtered = filtered.filter(evaluation => appliedModelIds.includes(evaluation.modelId));
     }
     
-    if (selectedQuestionIds.length > 0) {
-      filtered = filtered.filter(evaluation => selectedQuestionIds.includes(evaluation.questionId));
+    if (appliedQuestionIds.length > 0) {
+      filtered = filtered.filter(evaluation => appliedQuestionIds.includes(evaluation.questionId));
     }
     
     return filtered;
-  }, [allEvaluations, selectedModelIds, selectedQuestionIds]);
+  }, [allEvaluations, appliedModelIds, appliedQuestionIds]);
 
   // メモ化された平均スコア計算
   const averageScores = useMemo(() => {
@@ -66,8 +86,8 @@ export default function ResultsPage() {
     setIsExporting(true);
     try {
       const params = new URLSearchParams();
-      selectedModelIds.forEach(id => params.append('modelId', id));
-      selectedQuestionIds.forEach(id => params.append('questionId', id));
+      appliedModelIds.forEach(id => params.append('modelId', id));
+      appliedQuestionIds.forEach(id => params.append('questionId', id));
       
       const response = await fetch(`/api/evaluations/export?${params.toString()}`);
       
@@ -355,7 +375,24 @@ export default function ResultsPage() {
 
         <div className="bg-white rounded-lg shadow-md p-6 border mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">フィルタ・操作</h2>
+            <div>
+              <h2 className="text-xl font-semibold">フィルタ・操作</h2>
+              {(appliedModelIds.length > 0 || appliedQuestionIds.length > 0) && (
+                <div className="mt-2 text-sm text-gray-600">
+                  <span className="font-medium">適用中:</span>
+                  {appliedModelIds.length > 0 && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                      モデル {appliedModelIds.length}個
+                    </span>
+                  )}
+                  {appliedQuestionIds.length > 0 && (
+                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                      質問 {appliedQuestionIds.length}個
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               onClick={handleExportCSV}
               disabled={isExporting || evaluations.length === 0}
@@ -368,26 +405,34 @@ export default function ResultsPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-medium text-gray-700">
-                  モデルで絞り込み ({selectedModelIds.length}個選択)
+                  モデルで絞り込み ({tempSelectedModelIds.length}個選択)
                 </label>
-                <button
-                  onClick={() => setSelectedModelIds([])}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  全て解除
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTempSelectedModelIds(models.map(m => m.id))}
+                    className="text-xs text-green-600 hover:text-green-800 underline"
+                  >
+                    すべて選択
+                  </button>
+                  <button
+                    onClick={() => setTempSelectedModelIds([])}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    全て解除
+                  </button>
+                </div>
               </div>
               <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
                 {models.map((model) => (
                   <label key={model.id} className="flex items-center space-x-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={selectedModelIds.includes(model.id)}
+                      checked={tempSelectedModelIds.includes(model.id)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedModelIds([...selectedModelIds, model.id]);
+                          setTempSelectedModelIds([...tempSelectedModelIds, model.id]);
                         } else {
-                          setSelectedModelIds(selectedModelIds.filter(id => id !== model.id));
+                          setTempSelectedModelIds(tempSelectedModelIds.filter(id => id !== model.id));
                         }
                       }}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -400,26 +445,34 @@ export default function ResultsPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-medium text-gray-700">
-                  質問で絞り込み ({selectedQuestionIds.length}個選択)
+                  質問で絞り込み ({tempSelectedQuestionIds.length}個選択)
                 </label>
-                <button
-                  onClick={() => setSelectedQuestionIds([])}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  全て解除
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTempSelectedQuestionIds(questions.map(q => q.id))}
+                    className="text-xs text-green-600 hover:text-green-800 underline"
+                  >
+                    すべて選択
+                  </button>
+                  <button
+                    onClick={() => setTempSelectedQuestionIds([])}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    全て解除
+                  </button>
+                </div>
               </div>
               <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
                 {questions.map((question) => (
                   <label key={question.id} className="flex items-center space-x-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={selectedQuestionIds.includes(question.id)}
+                      checked={tempSelectedQuestionIds.includes(question.id)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedQuestionIds([...selectedQuestionIds, question.id]);
+                          setTempSelectedQuestionIds([...tempSelectedQuestionIds, question.id]);
                         } else {
-                          setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== question.id));
+                          setTempSelectedQuestionIds(tempSelectedQuestionIds.filter(id => id !== question.id));
                         }
                       }}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -429,6 +482,20 @@ export default function ResultsPage() {
                 ))}
               </div>
             </div>
+          </div>
+          <div className="mt-6 flex justify-center gap-4">
+            <button
+              onClick={applyFilters}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              フィルタを実行
+            </button>
+            <button
+              onClick={resetFilters}
+              className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+            >
+              フィルタをリセット
+            </button>
           </div>
         </div>
 
