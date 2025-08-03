@@ -75,7 +75,16 @@ export default function Layout({ children }: LayoutProps) {
         <div className={`${sidebarVisible ? 'p-6' : 'p-3'} transition-all duration-300`}>
           {sidebarVisible ? (
             <>
-              <h1 className="text-xl font-bold text-gray-800 mb-8">LLM評価システム</h1>
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-xl font-bold text-gray-800">LLM評価システム</h1>
+                <button
+                  onClick={toggleSidebar}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="サイドメニューを最小化"
+                >
+                  <span className="text-lg">◀</span>
+                </button>
+              </div>
               <nav className="space-y-1">
                 {menuItems.map((item) => (
                   <div key={item.label} className="bg-gray-50 rounded-lg">
@@ -140,8 +149,18 @@ export default function Layout({ children }: LayoutProps) {
             </>
           ) : (
             // 最小化状態（アイコンのみ）
-            <nav className="space-y-2">
-              {menuItems.map((item) => (
+            <>
+              <div className="mb-6">
+                <button
+                  onClick={toggleSidebar}
+                  className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="サイドメニューを表示"
+                >
+                  <span className="text-lg">▶</span>
+                </button>
+              </div>
+              <nav className="space-y-2">
+                {menuItems.map((item) => (
                 <div key={item.label}>
                   {item.href ? (
                     // 単一項目のアイコン
@@ -172,27 +191,14 @@ export default function Layout({ children }: LayoutProps) {
                   )}
                 </div>
               ))}
-            </nav>
+              </nav>
+            </>
           )}
         </div>
       </div>
 
       {/* メインコンテンツ */}
       <div className="flex-1 overflow-x-auto">
-        {/* トップバー */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="px-4 py-3">
-            <button
-              onClick={toggleSidebar}
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-              title={sidebarVisible ? 'サイドメニューを非表示' : 'サイドメニューを表示'}
-            >
-              <span className="text-lg">
-                {sidebarVisible ? '◀' : '▶'}
-              </span>
-            </button>
-          </div>
-        </div>
         {/* ページコンテンツ */}
         <div>
           {children}
