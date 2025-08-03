@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
             ...evaluation,
             question,
             model,
-            environment
+            environment: environment || undefined
           });
         }
       }
