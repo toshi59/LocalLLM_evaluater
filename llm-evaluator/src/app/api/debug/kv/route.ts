@@ -37,11 +37,35 @@ export async function GET() {
       // 読み込みテスト
       const result = await kv.get(testKey);
       
+      // 実際のデータを確認
+      const modelsData = await kv.get('models');
+      const questionsData = await kv.get('questions');
+      
       return NextResponse.json({
         success: true,
         message: 'KV connection working',
         testData: result,
-        env: process.env.NODE_ENV
+        env: process.env.NODE_ENV,
+        actualData: {
+          models: {
+            count: Array.isArray(modelsData) ? modelsData.length : 0,
+            first3Items: Array.isArray(modelsData) ? modelsData.slice(0, 3).map(m => ({
+              id: m.id,
+              name: m.name,
+              createdAt: m.createdAt
+            })) : 'Not an array',
+            dataType: typeof modelsData
+          },
+          questions: {
+            count: Array.isArray(questionsData) ? questionsData.length : 0,
+            first3Items: Array.isArray(questionsData) ? questionsData.slice(0, 3).map(q => ({
+              id: q.id,
+              title: q.title,
+              createdAt: q.createdAt
+            })) : 'Not an array',
+            dataType: typeof questionsData
+          }
+        }
       });
 
     } catch (kvError) {
