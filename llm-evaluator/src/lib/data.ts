@@ -126,7 +126,7 @@ export const modelService = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
-    models.push(newModel);
+    models.unshift(newModel); // 先頭に追加
     await setData('models', models);
     return newModel;
   },
@@ -171,7 +171,7 @@ export const questionService = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
-    questions.push(newQuestion);
+    questions.unshift(newQuestion); // 先頭に追加
     await setData('questions', questions);
     return newQuestion;
   },
@@ -226,7 +226,7 @@ export const evaluationService = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       evaluatedAt: new Date(),
     };
-    evaluations.push(newEvaluation);
+    evaluations.unshift(newEvaluation); // 先頭に追加
     await setData('evaluations', evaluations);
     return newEvaluation;
   },
@@ -303,7 +303,7 @@ export const evaluationPromptService = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
-    prompts.push(newPrompt);
+    prompts.unshift(newPrompt); // 先頭に追加
     await setData('evaluation-prompts', prompts);
     return newPrompt;
   },
@@ -348,7 +348,7 @@ export const evaluatorService = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
-    evaluators.push(newEvaluator);
+    evaluators.unshift(newEvaluator); // 先頭に追加
     await setData('evaluators', evaluators);
     return newEvaluator;
   },
@@ -393,7 +393,7 @@ export const evaluationEnvironmentService = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
-    environments.push(newEnvironment);
+    environments.unshift(newEnvironment); // 先頭に追加
     await setData('evaluation-environments', environments);
     return newEnvironment;
   },
