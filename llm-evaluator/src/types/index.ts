@@ -32,6 +32,15 @@ export interface EvaluationComments {
   overall?: string;       // 総合のコメント
 }
 
+export interface EvaluationEnvironment {
+  id: string;
+  name: string;
+  processingSpec: string;      // 処理スペック（CPU、GPU、RAM等）
+  executionApp: string;        // 実行アプリ（Ollama、LM Studio等）
+  description?: string;        // 環境の説明
+  createdAt: Date;
+}
+
 export interface Evaluation {
   id: string;
   questionId: string;
@@ -39,12 +48,16 @@ export interface Evaluation {
   response: string;
   scores: EvaluationScores;
   comments: EvaluationComments;
+  environmentId?: string;      // 評価環境ID
+  evaluator?: string;          // 評価者名
+  processingTime?: number;     // 処理時間（秒）
   evaluatedAt: Date;
 }
 
 export interface EvaluationResult extends Evaluation {
   question: Question;
   model: LLMModel;
+  environment?: EvaluationEnvironment;
 }
 
 export interface EvaluatorConfig {
@@ -60,6 +73,15 @@ export interface EvaluationPrompt {
   id: string;
   name: string;
   prompt: string;
+  description?: string;
+  createdAt: Date;
+}
+
+export interface Evaluator {
+  id: string;
+  name: string;
+  organization?: string;
+  email?: string;
   description?: string;
   createdAt: Date;
 }

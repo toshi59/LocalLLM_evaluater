@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
     } else {
       // ローカル環境
       if (questionId) {
-        evaluations = evaluationService.getByQuestion(questionId);
+        evaluations = await evaluationService.getByQuestion(questionId);
       } else if (modelId) {
-        evaluations = evaluationService.getByModel(modelId);
+        evaluations = await evaluationService.getByModel(modelId);
       } else {
-        evaluations = evaluationService.getAll();
+        evaluations = await evaluationService.getAll();
       }
     }
 
@@ -56,13 +56,16 @@ export async function POST(request: NextRequest) {
       response: body.response,
       scores: body.scores,
       comments: body.comments || {},
+      environmentId: body.environmentId,
+      evaluator: body.evaluator,
+      processingTime: body.processingTime,
       evaluatedAt: new Date(),
     };
 
     // 本番環境ではKVを使用
     const evaluation = process.env.NODE_ENV === 'production' 
       ? await kvEvaluationService.create(evaluationData)
-      : evaluationService.create(evaluationData);
+      : await evaluationService.create(evaluationData);
 
     return NextResponse.json(evaluation, { status: 201 });
   } catch (error) {

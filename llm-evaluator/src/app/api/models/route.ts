@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const models = process.env.NODE_ENV === 'production' 
       ? await kvModelService.getAll() 
-      : modelService.getAll();
+      : await modelService.getAll();
     return NextResponse.json(models);
   } catch (error) {
     console.error('Error fetching models:', error);
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const model = process.env.NODE_ENV === 'production' 
       ? await kvModelService.create(modelData)
-      : modelService.create(modelData);
+      : await modelService.create(modelData);
 
     return NextResponse.json(model, { status: 201 });
   } catch (error) {

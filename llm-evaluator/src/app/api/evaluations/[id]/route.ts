@@ -8,7 +8,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     
     const success = process.env.NODE_ENV === 'production'
       ? await kvEvaluationService.delete(id)
-      : evaluationService.delete(id);
+      : await evaluationService.delete(id);
     if (!success) {
       return NextResponse.json(
         { error: 'Evaluation not found' },

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "しらす-Desktop-Windows",
+    "processingSpec": "CPU  \tIntel(R) Core(TM) i5-10400 CPU @ 2.90GHz  \t基本速度:\t2.90 GHz \tソケット:\t1 \tコア:\t6 \t論理プロセッサ数:\t12 \t仮想化:\t有効 \tL1 キャッシュ:\t384 KB \tL2 キャッシュ:\t1.5 MB \tL3 キャッシュ:\t12.0 MB  \t使用率\t17% \t速度\t4.04 GHz \t稼働時間\t12:11:22:12 \tプロセス数\t401 \tスレッド数\t6944 \tハンドル数\t222067",
+    "executionApp": "Ollama v0.10.1",
+    "description": "",
+    "id": "1754196633907-mdkhzk0i9",
+    "createdAt": "2025-08-03T04:50:33.907Z"
+  }
+]

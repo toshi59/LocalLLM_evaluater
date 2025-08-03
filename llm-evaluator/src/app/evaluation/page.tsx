@@ -2,14 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LLMModel, Question, EvaluationScores, EvaluationComments, EvaluationPrompt } from '@/types';
+import { LLMModel, Question, EvaluationScores, EvaluationComments, EvaluationPrompt, EvaluationEnvironment, Evaluator } from '@/types';
 
 export default function EvaluationPage() {
   const [models, setModels] = useState<LLMModel[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [environments, setEnvironments] = useState<EvaluationEnvironment[]>([]);
+  const [evaluators, setEvaluators] = useState<Evaluator[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
+  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<string>('');
+  const [selectedEvaluatorId, setSelectedEvaluatorId] = useState<string>('');
   const [response, setResponse] = useState<string>('');
+  const [processingTime, setProcessingTime] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [showEvaluation, setShowEvaluation] = useState(false);
   const [scores, setScores] = useState<EvaluationScores>({
@@ -35,6 +40,8 @@ export default function EvaluationPage() {
     fetchModels();
     fetchQuestions();
     fetchPrompts();
+    fetchEnvironments();
+    fetchEvaluators();
   }, []);
 
   const fetchModels = async () => {
@@ -42,7 +49,7 @@ export default function EvaluationPage() {
       const response = await fetch('/api/models');
       if (response.ok) {
         const data = await response.json();
-        setModels(data);
+        setModels(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching models:', error);
@@ -54,7 +61,7 @@ export default function EvaluationPage() {
       const response = await fetch('/api/questions');
       if (response.ok) {
         const data = await response.json();
-        setQuestions(data);
+        setQuestions(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching questions:', error);
@@ -66,8 +73,8 @@ export default function EvaluationPage() {
       const response = await fetch('/api/evaluator/prompts');
       if (response.ok) {
         const data = await response.json();
-        setPrompts(data);
-        if (data.length > 0) {
+        setPrompts(Array.isArray(data) ? data : []);
+        if (Array.isArray(data) && data.length > 0) {
           setSelectedPromptId(data[0].id);
         }
       }
@@ -76,9 +83,43 @@ export default function EvaluationPage() {
     }
   };
 
+  const fetchEnvironments = async () => {
+    try {
+      const response = await fetch('/api/evaluation-environments');
+      if (response.ok) {
+        const data = await response.json();
+        const environmentsData = Array.isArray(data) ? data : [];
+        setEnvironments(environmentsData);
+        // デフォルトで最初の環境を選択
+        if (environmentsData.length > 0 && !selectedEnvironmentId) {
+          setSelectedEnvironmentId(environmentsData[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching environments:', error);
+    }
+  };
+
+  const fetchEvaluators = async () => {
+    try {
+      const response = await fetch('/api/evaluators');
+      if (response.ok) {
+        const data = await response.json();
+        const evaluatorsData = Array.isArray(data) ? data : [];
+        setEvaluators(evaluatorsData);
+        // デフォルトで最初の評価者を選択
+        if (evaluatorsData.length > 0 && !selectedEvaluatorId) {
+          setSelectedEvaluatorId(evaluatorsData[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching evaluators:', error);
+    }
+  };
+
   const handleProceedToEvaluation = () => {
-    if (!selectedModelId || !selectedQuestionId) {
-      alert('モデルと質問を選択してください');
+    if (!selectedModelId || !selectedQuestionId || !selectedEnvironmentId) {
+      alert('モデル、質問、評価環境を選択してください');
       return;
     }
     setShowEvaluation(true);
@@ -164,12 +205,17 @@ export default function EvaluationPage() {
           response,
           scores,
           comments,
+          environmentId: selectedEnvironmentId,
+          evaluator: evaluators.find(e => e.id === selectedEvaluatorId)?.name || '',
+          processingTime,
         }),
       });
 
       if (evaluationResponse.ok) {
         alert('評価を保存しました');
         setResponse('');
+        setSelectedEvaluatorId('');
+        setProcessingTime(undefined);
         setComments({
           accuracy: '',
           completeness: '',
@@ -228,7 +274,7 @@ export default function EvaluationPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   LLMモデルを選択
                 </label>
-                {models.length === 0 ? (
+                {!Array.isArray(models) || models.length === 0 ? (
                   <div className="text-gray-500 text-sm">
                     モデルが登録されていません。
                     <Link href="/models" className="text-blue-600 hover:underline ml-1">
@@ -256,7 +302,7 @@ export default function EvaluationPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   質問を選択
                 </label>
-                {questions.length === 0 ? (
+                {!Array.isArray(questions) || questions.length === 0 ? (
                   <div className="text-gray-500 text-sm">
                     質問が登録されていません。
                     <Link href="/questions" className="text-blue-600 hover:underline ml-1">
@@ -282,9 +328,65 @@ export default function EvaluationPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  評価環境を選択
+                </label>
+                {!Array.isArray(environments) || environments.length === 0 ? (
+                  <div className="text-gray-500 text-sm">
+                    評価環境が登録されていません。
+                    <Link href="/environments" className="text-blue-600 hover:underline ml-1">
+                      評価環境管理ページ
+                    </Link>
+                    で追加してください。
+                  </div>
+                ) : (
+                  <select
+                    value={selectedEnvironmentId}
+                    onChange={(e) => setSelectedEnvironmentId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">評価環境を選択</option>
+                    {environments.map((environment) => (
+                      <option key={environment.id} value={environment.id}>
+                        {environment.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  評価者
+                </label>
+                {!Array.isArray(evaluators) || evaluators.length === 0 ? (
+                  <div className="text-gray-500 text-sm">
+                    評価者が登録されていません。
+                    <Link href="/evaluators" className="text-blue-600 hover:underline ml-1">
+                      評価者管理ページ
+                    </Link>
+                    で追加してください。
+                  </div>
+                ) : (
+                  <select
+                    value={selectedEvaluatorId}
+                    onChange={(e) => setSelectedEvaluatorId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">評価者を選択</option>
+                    {evaluators.map((evaluator) => (
+                      <option key={evaluator.id} value={evaluator.id}>
+                        {evaluator.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   評価プロンプト
                 </label>
-                {prompts.length === 0 ? (
+                {!Array.isArray(prompts) || prompts.length === 0 ? (
                   <div className="text-gray-500 text-sm">
                     評価プロンプトが登録されていません。
                   </div>
@@ -314,10 +416,33 @@ export default function EvaluationPage() {
               </div>
             )}
 
+            {selectedEnvironmentId && environments.find(env => env.id === selectedEnvironmentId) && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">選択された評価環境:</h3>
+                <div className="bg-blue-50 p-4 rounded-md">
+                  {(() => {
+                    const selectedEnv = environments.find(env => env.id === selectedEnvironmentId);
+                    return selectedEnv ? (
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-blue-800">{selectedEnv.name}</h4>
+                        <div className="text-sm text-blue-700">
+                          <div><span className="font-medium">処理スペック:</span> {selectedEnv.processingSpec}</div>
+                          <div><span className="font-medium">実行アプリ:</span> {selectedEnv.executionApp}</div>
+                          {selectedEnv.description && (
+                            <div><span className="font-medium">説明:</span> {selectedEnv.description}</div>
+                          )}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
+            )}
+
             <div className="mt-6">
               <button
                 onClick={handleProceedToEvaluation}
-                disabled={!selectedModelId || !selectedQuestionId}
+                disabled={!selectedModelId || !selectedQuestionId || !selectedEnvironmentId}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 評価画面に進む
@@ -346,6 +471,19 @@ export default function EvaluationPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[200px]"
                     placeholder="LLMの回答をここにペーストしてください..."
                   />
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      処理時間（秒）
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={processingTime || ''}
+                      onChange={(e) => setProcessingTime(e.target.value ? parseFloat(e.target.value) : undefined)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="例: 5.2"
+                    />
+                  </div>
                   <div className="mt-4">
                     <button
                       onClick={handleEvaluateResponse}

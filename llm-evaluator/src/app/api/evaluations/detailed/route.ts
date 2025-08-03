@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { evaluationService, questionService, modelService } from '@/lib/data';
+import { evaluationService, questionService, modelService, evaluationEnvironmentService } from '@/lib/data';
 import { kvEvaluationService, kvQuestionService, kvModelService } from '@/lib/kv-data';
 import { EvaluationResult } from '@/types';
 
@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
       }
     } else {
       if (questionId) {
-        evaluations = evaluationService.getByQuestion(questionId);
+        evaluations = await evaluationService.getByQuestion(questionId);
       } else if (modelId) {
-        evaluations = evaluationService.getByModel(modelId);
+        evaluations = await evaluationService.getByModel(modelId);
       } else {
-        evaluations = evaluationService.getAll();
+        evaluations = await evaluationService.getAll();
       }
     }
 
@@ -39,26 +39,33 @@ export async function GET(request: NextRequest) {
       for (const evaluation of evaluations) {
         const question = await kvQuestionService.getById(evaluation.questionId);
         const model = await kvModelService.getById(evaluation.modelId);
+        // TODO: KV環境での評価環境取得処理
+        const environment = null; // KV側の実装が必要
           
         if (question && model) {
           detailedEvaluations.push({
             ...evaluation,
             question,
-            model
+            model,
+            environment
           });
         }
       }
     } else {
       // ローカル環境: 非同期でデータ取得（modelServiceもasyncのため）
       for (const evaluation of evaluations) {
-        const question = questionService.getById(evaluation.questionId);
+        const question = await questionService.getById(evaluation.questionId);
         const model = await modelService.getById(evaluation.modelId);
+        const environment = evaluation.environmentId 
+          ? await evaluationEnvironmentService.getById(evaluation.environmentId)
+          : null;
           
         if (question && model) {
           detailedEvaluations.push({
             ...evaluation,
             question,
-            model
+            model,
+            environment
           });
         }
       }

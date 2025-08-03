@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const prompts = process.env.NODE_ENV === 'production' 
       ? await kvEvaluationPromptService.getAll()
-      : evaluationPromptService.getAll();
+      : await evaluationPromptService.getAll();
     return NextResponse.json(prompts);
   } catch (error) {
     console.error('Error fetching evaluation prompts:', error);
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     const newPrompt = process.env.NODE_ENV === 'production'
       ? await kvEvaluationPromptService.create({ name, prompt, description })
-      : evaluationPromptService.create({ name, prompt, description });
+      : await evaluationPromptService.create({ name, prompt, description });
 
     return NextResponse.json(newPrompt, { status: 201 });
   } catch (error) {

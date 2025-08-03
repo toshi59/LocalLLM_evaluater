@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt } from '@/types';
+import { LLMModel, Question, Evaluation, EvaluatorConfig, EvaluationPrompt, EvaluationEnvironment, Evaluator } from '@/types';
 
 // Vercel KVのインポート（本番環境のみ）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,6 +20,8 @@ const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
 const EVALUATIONS_FILE = path.join(DATA_DIR, 'evaluations.json');
 const EVALUATOR_CONFIG_FILE = path.join(DATA_DIR, 'evaluator-config.json');
 const EVALUATION_PROMPTS_FILE = path.join(DATA_DIR, 'evaluation-prompts.json');
+const EVALUATION_ENVIRONMENTS_FILE = path.join(DATA_DIR, 'evaluation-environments.json');
+const EVALUATORS_FILE = path.join(DATA_DIR, 'evaluators.json');
 
 // データストレージのヘルパー関数
 async function getData<T>(key: string, fallback: T[] = []): Promise<T[]> {
@@ -64,7 +66,9 @@ function getFilePath(key: string): string {
     'questions': QUESTIONS_FILE,
     'evaluations': EVALUATIONS_FILE,
     'evaluator-config': EVALUATOR_CONFIG_FILE,
-    'evaluation-prompts': EVALUATION_PROMPTS_FILE
+    'evaluation-prompts': EVALUATION_PROMPTS_FILE,
+    'evaluation-environments': EVALUATION_ENVIRONMENTS_FILE,
+    'evaluators': EVALUATORS_FILE
   };
   return fileMap[key] || path.join(DATA_DIR, `${key}.json`);
 }
@@ -119,7 +123,7 @@ export const modelService = {
     const models = await modelService.getAll();
     const newModel: LLMModel = {
       ...model,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
     models.push(newModel);
@@ -150,100 +154,100 @@ export const modelService = {
 
 // 質問管理
 export const questionService = {
-  getAll: (): Question[] => {
-    initializeData();
-    return readJsonFile<Question>(QUESTIONS_FILE);
+  getAll: async (): Promise<Question[]> => {
+    if (!kv) initializeData();
+    return await getData<Question>('questions');
   },
   
-  getById: (id: string): Question | null => {
-    const questions = questionService.getAll();
+  getById: async (id: string): Promise<Question | null> => {
+    const questions = await questionService.getAll();
     return questions.find(question => question.id === id) || null;
   },
   
-  create: (question: Omit<Question, 'id' | 'createdAt'>): Question => {
-    const questions = questionService.getAll();
+  create: async (question: Omit<Question, 'id' | 'createdAt'>): Promise<Question> => {
+    const questions = await questionService.getAll();
     const newQuestion: Question = {
       ...question,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
     questions.push(newQuestion);
-    writeJsonFile(QUESTIONS_FILE, questions);
+    await setData('questions', questions);
     return newQuestion;
   },
   
-  update: (id: string, updates: Partial<Omit<Question, 'id' | 'createdAt'>>): Question | null => {
-    const questions = questionService.getAll();
+  update: async (id: string, updates: Partial<Omit<Question, 'id' | 'createdAt'>>): Promise<Question | null> => {
+    const questions = await questionService.getAll();
     const index = questions.findIndex(question => question.id === id);
     if (index === -1) return null;
     
     questions[index] = { ...questions[index], ...updates };
-    writeJsonFile(QUESTIONS_FILE, questions);
+    await setData('questions', questions);
     return questions[index];
   },
   
-  delete: (id: string): boolean => {
-    const questions = questionService.getAll();
+  delete: async (id: string): Promise<boolean> => {
+    const questions = await questionService.getAll();
     const index = questions.findIndex(question => question.id === id);
     if (index === -1) return false;
     
     questions.splice(index, 1);
-    writeJsonFile(QUESTIONS_FILE, questions);
+    await setData('questions', questions);
     return true;
   }
 };
 
 // 評価管理
 export const evaluationService = {
-  getAll: (): Evaluation[] => {
-    initializeData();
-    return readJsonFile<Evaluation>(EVALUATIONS_FILE);
+  getAll: async (): Promise<Evaluation[]> => {
+    if (!kv) initializeData();
+    return await getData<Evaluation>('evaluations');
   },
   
-  getById: (id: string): Evaluation | null => {
-    const evaluations = evaluationService.getAll();
+  getById: async (id: string): Promise<Evaluation | null> => {
+    const evaluations = await evaluationService.getAll();
     return evaluations.find(evaluation => evaluation.id === id) || null;
   },
   
-  getByQuestion: (questionId: string): Evaluation[] => {
-    const evaluations = evaluationService.getAll();
+  getByQuestion: async (questionId: string): Promise<Evaluation[]> => {
+    const evaluations = await evaluationService.getAll();
     return evaluations.filter(evaluation => evaluation.questionId === questionId);
   },
   
-  getByModel: (modelId: string): Evaluation[] => {
-    const evaluations = evaluationService.getAll();
+  getByModel: async (modelId: string): Promise<Evaluation[]> => {
+    const evaluations = await evaluationService.getAll();
     return evaluations.filter(evaluation => evaluation.modelId === modelId);
   },
   
-  create: (evaluation: Omit<Evaluation, 'id' | 'evaluatedAt'>): Evaluation => {
-    const evaluations = evaluationService.getAll();
+  create: async (evaluation: Omit<Evaluation, 'id' | 'evaluatedAt'>): Promise<Evaluation> => {
+    const evaluations = await evaluationService.getAll();
     const newEvaluation: Evaluation = {
       ...evaluation,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       evaluatedAt: new Date(),
     };
     evaluations.push(newEvaluation);
-    writeJsonFile(EVALUATIONS_FILE, evaluations);
+    await setData('evaluations', evaluations);
     return newEvaluation;
   },
   
-  update: (id: string, updates: Partial<Omit<Evaluation, 'id' | 'evaluatedAt'>>): Evaluation | null => {
-    const evaluations = evaluationService.getAll();
+  update: async (id: string, updates: Partial<Omit<Evaluation, 'id' | 'evaluatedAt'>>): Promise<Evaluation | null> => {
+    const evaluations = await evaluationService.getAll();
     const index = evaluations.findIndex(evaluation => evaluation.id === id);
     if (index === -1) return null;
     
     evaluations[index] = { ...evaluations[index], ...updates };
-    writeJsonFile(EVALUATIONS_FILE, evaluations);
+    await setData('evaluations', evaluations);
     return evaluations[index];
   },
   
-  delete: (id: string): boolean => {
-    const evaluations = evaluationService.getAll();
+  delete: async (id: string): Promise<boolean> => {
+    const evaluations = await evaluationService.getAll();
     const index = evaluations.findIndex(evaluation => evaluation.id === id);
     if (index === -1) return false;
     
     evaluations.splice(index, 1);
-    writeJsonFile(EVALUATIONS_FILE, evaluations);
+    await setData('evaluations', evaluations);
     return true;
   }
 };
@@ -282,45 +286,135 @@ export const evaluatorConfigService = {
 
 // 評価プロンプト管理
 export const evaluationPromptService = {
-  getAll: (): EvaluationPrompt[] => {
-    initializeData();
-    return readJsonFile<EvaluationPrompt>(EVALUATION_PROMPTS_FILE);
+  getAll: async (): Promise<EvaluationPrompt[]> => {
+    if (!kv) initializeData();
+    return await getData<EvaluationPrompt>('evaluation-prompts');
   },
   
-  getById: (id: string): EvaluationPrompt | null => {
-    const prompts = evaluationPromptService.getAll();
+  getById: async (id: string): Promise<EvaluationPrompt | null> => {
+    const prompts = await evaluationPromptService.getAll();
     return prompts.find(prompt => prompt.id === id) || null;
   },
   
-  create: (prompt: Omit<EvaluationPrompt, 'id' | 'createdAt'>): EvaluationPrompt => {
-    const prompts = evaluationPromptService.getAll();
+  create: async (prompt: Omit<EvaluationPrompt, 'id' | 'createdAt'>): Promise<EvaluationPrompt> => {
+    const prompts = await evaluationPromptService.getAll();
     const newPrompt: EvaluationPrompt = {
       ...prompt,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
     };
     prompts.push(newPrompt);
-    writeJsonFile(EVALUATION_PROMPTS_FILE, prompts);
+    await setData('evaluation-prompts', prompts);
     return newPrompt;
   },
   
-  update: (id: string, updates: Partial<Omit<EvaluationPrompt, 'id' | 'createdAt'>>): EvaluationPrompt | null => {
-    const prompts = evaluationPromptService.getAll();
+  update: async (id: string, updates: Partial<Omit<EvaluationPrompt, 'id' | 'createdAt'>>): Promise<EvaluationPrompt | null> => {
+    const prompts = await evaluationPromptService.getAll();
     const index = prompts.findIndex(prompt => prompt.id === id);
     if (index === -1) return null;
     
     prompts[index] = { ...prompts[index], ...updates };
-    writeJsonFile(EVALUATION_PROMPTS_FILE, prompts);
+    await setData('evaluation-prompts', prompts);
     return prompts[index];
   },
   
-  delete: (id: string): boolean => {
-    const prompts = evaluationPromptService.getAll();
+  delete: async (id: string): Promise<boolean> => {
+    const prompts = await evaluationPromptService.getAll();
     const index = prompts.findIndex(prompt => prompt.id === id);
     if (index === -1) return false;
     
     prompts.splice(index, 1);
-    writeJsonFile(EVALUATION_PROMPTS_FILE, prompts);
+    await setData('evaluation-prompts', prompts);
+    return true;
+  }
+};
+
+// 評価者管理
+export const evaluatorService = {
+  getAll: async (): Promise<Evaluator[]> => {
+    if (!kv) initializeData();
+    return await getData<Evaluator>('evaluators');
+  },
+  
+  getById: async (id: string): Promise<Evaluator | null> => {
+    const evaluators = await evaluatorService.getAll();
+    return evaluators.find(evaluator => evaluator.id === id) || null;
+  },
+  
+  create: async (evaluator: Omit<Evaluator, 'id' | 'createdAt'>): Promise<Evaluator> => {
+    const evaluators = await evaluatorService.getAll();
+    const newEvaluator: Evaluator = {
+      ...evaluator,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date(),
+    };
+    evaluators.push(newEvaluator);
+    await setData('evaluators', evaluators);
+    return newEvaluator;
+  },
+  
+  update: async (id: string, updates: Partial<Omit<Evaluator, 'id' | 'createdAt'>>): Promise<Evaluator | null> => {
+    const evaluators = await evaluatorService.getAll();
+    const index = evaluators.findIndex(evaluator => evaluator.id === id);
+    if (index === -1) return null;
+    
+    evaluators[index] = { ...evaluators[index], ...updates };
+    await setData('evaluators', evaluators);
+    return evaluators[index];
+  },
+  
+  delete: async (id: string): Promise<boolean> => {
+    const evaluators = await evaluatorService.getAll();
+    const index = evaluators.findIndex(evaluator => evaluator.id === id);
+    if (index === -1) return false;
+    
+    evaluators.splice(index, 1);
+    await setData('evaluators', evaluators);
+    return true;
+  }
+};
+
+// 評価環境管理
+export const evaluationEnvironmentService = {
+  getAll: async (): Promise<EvaluationEnvironment[]> => {
+    if (!kv) initializeData();
+    return await getData<EvaluationEnvironment>('evaluation-environments');
+  },
+  
+  getById: async (id: string): Promise<EvaluationEnvironment | null> => {
+    const environments = await evaluationEnvironmentService.getAll();
+    return environments.find(env => env.id === id) || null;
+  },
+  
+  create: async (environment: Omit<EvaluationEnvironment, 'id' | 'createdAt'>): Promise<EvaluationEnvironment> => {
+    const environments = await evaluationEnvironmentService.getAll();
+    const newEnvironment: EvaluationEnvironment = {
+      ...environment,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date(),
+    };
+    environments.push(newEnvironment);
+    await setData('evaluation-environments', environments);
+    return newEnvironment;
+  },
+  
+  update: async (id: string, updates: Partial<Omit<EvaluationEnvironment, 'id' | 'createdAt'>>): Promise<EvaluationEnvironment | null> => {
+    const environments = await evaluationEnvironmentService.getAll();
+    const index = environments.findIndex(env => env.id === id);
+    if (index === -1) return null;
+    
+    environments[index] = { ...environments[index], ...updates };
+    await setData('evaluation-environments', environments);
+    return environments[index];
+  },
+  
+  delete: async (id: string): Promise<boolean> => {
+    const environments = await evaluationEnvironmentService.getAll();
+    const index = environments.findIndex(env => env.id === id);
+    if (index === -1) return false;
+    
+    environments.splice(index, 1);
+    await setData('evaluation-environments', environments);
     return true;
   }
 };

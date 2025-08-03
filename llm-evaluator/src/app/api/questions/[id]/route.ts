@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { questionService } from '@/lib/data';
+import { kvQuestionService } from '@/lib/kv-data';
 
 export async function GET(
   request: NextRequest,
@@ -7,7 +8,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const question = questionService.getById(id);
+    
+    // 本番環境ではKVを使用
+    const question = process.env.NODE_ENV === 'production'
+      ? await kvQuestionService.getById(id)
+      : await questionService.getById(id);
     
     if (!question) {
       return NextResponse.json({ error: 'Question not found' }, { status: 404 });
@@ -27,7 +32,11 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const question = questionService.update(id, body);
+    
+    // 本番環境ではKVを使用
+    const question = process.env.NODE_ENV === 'production'
+      ? await kvQuestionService.update(id, body)
+      : await questionService.update(id, body);
     
     if (!question) {
       return NextResponse.json({ error: 'Question not found' }, { status: 404 });
@@ -46,7 +55,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const success = questionService.delete(id);
+    
+    // 本番環境ではKVを使用
+    const success = process.env.NODE_ENV === 'production'
+      ? await kvQuestionService.delete(id)
+      : await questionService.delete(id);
     
     if (!success) {
       return NextResponse.json({ error: 'Question not found' }, { status: 404 });

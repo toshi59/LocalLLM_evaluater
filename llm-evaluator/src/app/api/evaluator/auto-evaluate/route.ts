@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     // 評価プロンプトを取得
     const promptService = evaluationPromptService;
     const selectedPrompt = promptId 
-      ? promptService.getById(promptId)
-      : promptService.getAll()[0]; // デフォルトプロンプト
+      ? await promptService.getById(promptId)
+      : (await promptService.getAll())[0]; // デフォルトプロンプト
 
     if (!selectedPrompt) {
       return NextResponse.json(
@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
     }
 
     // プロンプトのプレースホルダーを置換
-    const evaluationPrompt = selectedPrompt.prompt
-      .replace('{question}', questionContent)
-      .replace('{response}', llmResponse);
+    const evaluationPrompt = (selectedPrompt.prompt || '')
+      .replace('{question}', questionContent || '')
+      .replace('{response}', llmResponse || '');
 
     // OpenAI APIに評価リクエスト
     const requestBody = {

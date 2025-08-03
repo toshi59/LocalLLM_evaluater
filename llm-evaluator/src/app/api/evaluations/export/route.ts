@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { evaluationService, modelService, questionService } from '@/lib/data';
+import { evaluationService, modelService, questionService, evaluationEnvironmentService } from '@/lib/data';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const questionId = searchParams.get('questionId');
 
     // 評価データを取得
-    let evaluations = evaluationService.getAll();
+    let evaluations = await evaluationService.getAll();
     
     // フィルタリング
     if (modelId) {
@@ -18,14 +18,18 @@ export async function GET(request: NextRequest) {
       evaluations = evaluations.filter(e => e.questionId === questionId);
     }
 
-    // モデルと質問の情報を取得
+    // モデル、質問、評価環境の情報を取得
     const models = await modelService.getAll();
-    const questions = questionService.getAll();
+    const questions = await questionService.getAll();
+    const environments = await evaluationEnvironmentService.getAll();
 
     // CSV形式でデータを構築
-    const csvData = evaluations.map(evaluation => {
+    const csvData = await Promise.all(evaluations.map(async evaluation => {
       const model = models.find(m => m.id === evaluation.modelId);
       const question = questions.find(q => q.id === evaluation.questionId);
+      const environment = evaluation.environmentId 
+        ? environments.find(e => e.id === evaluation.environmentId)
+        : null;
 
       return {
         'ID': evaluation.id,
@@ -34,6 +38,11 @@ export async function GET(request: NextRequest) {
         '質問タイトル': question?.title || '不明',
         '質問内容': question?.content || '不明',
         'LLMの回答': evaluation.response,
+        '評価環境': environment?.name || '',
+        '評価者': evaluation.evaluator || '',
+        '処理スペック': environment?.processingSpec || '',
+        '実行アプリ': environment?.executionApp || '',
+        '処理時間（秒）': evaluation.processingTime || '',
         '正確性': evaluation.scores.accuracy,
         '網羅性': evaluation.scores.completeness,
         '論理構成': evaluation.scores.logic,
@@ -48,7 +57,7 @@ export async function GET(request: NextRequest) {
         ).toFixed(2),
         'コメント': evaluation.comments?.overall || ''
       };
-    });
+    }));
 
     // CSVヘッダー
     const headers = Object.keys(csvData[0] || {});

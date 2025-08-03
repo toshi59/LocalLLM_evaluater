@@ -11,6 +11,7 @@ export default function ResultsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<string>>(new Set());
+  const [expandedEnvironments, setExpandedEnvironments] = useState<Set<string>>(new Set());
 
   // React Queryを使用してデータを取得とキャッシュ
   const { data, isLoading, error } = useEvaluationData();
@@ -93,6 +94,7 @@ export default function ResultsPage() {
   // メモ化されたモデル×質問のマトリックスデータ計算
   const matrixData = useMemo(() => {
     const matrix: { [modelId: string]: { [questionId: string]: number | null } } = {};
+    const countMatrix: { [modelId: string]: { [questionId: string]: number } } = {};
     
     // 評価済みのモデルと質問のみを取得
     const evaluatedModelIds = new Set(evaluations.map(e => e.modelId));
@@ -104,19 +106,35 @@ export default function ResultsPage() {
     // 評価済みモデルと質問の組み合わせを初期化
     evaluatedModels.forEach(model => {
       matrix[model.id] = {};
+      countMatrix[model.id] = {};
       evaluatedQuestions.forEach(question => {
         matrix[model.id][question.id] = null;
+        countMatrix[model.id][question.id] = 0;
       });
     });
     
-    // 評価結果で埋める
+    // 同じモデル×質問の組み合わせの評価結果を集計して平均値を計算
+    const scoreGroups: { [key: string]: number[] } = {};
+    
     evaluations.forEach(evaluation => {
-      if (matrix[evaluation.modelId]) {
-        matrix[evaluation.modelId][evaluation.questionId] = evaluation.scores.overall;
+      const key = `${evaluation.modelId}-${evaluation.questionId}`;
+      if (!scoreGroups[key]) {
+        scoreGroups[key] = [];
+      }
+      scoreGroups[key].push(evaluation.scores.overall);
+    });
+    
+    // 平均値と件数をマトリックスに設定
+    Object.entries(scoreGroups).forEach(([key, scores]) => {
+      const [modelId, questionId] = key.split('-');
+      if (matrix[modelId] && matrix[modelId][questionId] !== undefined) {
+        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        matrix[modelId][questionId] = Math.round(average * 10) / 10; // 小数点第1位まで
+        countMatrix[modelId][questionId] = scores.length;
       }
     });
     
-    return { matrixData: matrix, evaluatedModels, evaluatedQuestions };
+    return { matrixData: matrix, countMatrix, evaluatedModels, evaluatedQuestions };
   }, [evaluations, models, questions]);
 
   // メモ化されたイベントハンドラー
@@ -134,6 +152,18 @@ export default function ResultsPage() {
 
   const toggleEvaluationExpanded = useCallback((evaluationId: string) => {
     setExpandedEvaluations(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(evaluationId)) {
+        newExpanded.delete(evaluationId);
+      } else {
+        newExpanded.add(evaluationId);
+      }
+      return newExpanded;
+    });
+  }, []);
+
+  const toggleEnvironmentExpanded = useCallback((evaluationId: string) => {
+    setExpandedEnvironments(prev => {
       const newExpanded = new Set(prev);
       if (newExpanded.has(evaluationId)) {
         newExpanded.delete(evaluationId);
@@ -181,7 +211,7 @@ export default function ResultsPage() {
 
         {/* モデル×質問マトリックス */}
         {(() => {
-          const { matrixData: matrix, evaluatedModels, evaluatedQuestions } = matrixData;
+          const { matrixData: matrix, countMatrix, evaluatedModels, evaluatedQuestions } = matrixData;
           
           if (evaluatedModels.length === 0 || evaluatedQuestions.length === 0) {
             return null;
@@ -236,11 +266,19 @@ export default function ResultsPage() {
                           </td>
                           {evaluatedQuestions.map(question => {
                             const score = matrix[model.id]?.[question.id];
+                            const count = countMatrix[model.id]?.[question.id] || 0;
                             return (
                               <td key={question.id} className="border border-gray-300 p-2 text-center">
                                 {score !== null && score !== undefined ? (
-                                  <div className={`inline-block px-3 py-2 rounded-lg text-sm font-bold ${getScoreColor(score)}`}>
-                                    {score.toFixed(1)}
+                                  <div>
+                                    <div className={`inline-block px-3 py-2 rounded-lg text-sm font-bold ${getScoreColor(score)}`}>
+                                      {score.toFixed(1)}
+                                    </div>
+                                    {count > 1 && (
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        {count}件平均
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="text-gray-400 text-xs">
@@ -387,48 +425,114 @@ export default function ResultsPage() {
             {evaluations.map((evaluation) => (
               <div key={evaluation.id} className="bg-white rounded-lg shadow-md border">
                 <div className="p-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    {/* 左側: 展開ボタン + 基本情報 */}
+                    <div className="col-span-7 flex items-center gap-4">
                       <button
                         onClick={() => toggleEvaluationExpanded(evaluation.id)}
-                        className="text-gray-600 hover:text-gray-800 text-xl font-bold w-8 h-8 flex items-center justify-center"
+                        className="text-gray-600 hover:text-gray-800 text-xl font-bold w-8 h-8 flex items-center justify-center flex-shrink-0"
                         title={expandedEvaluations.has(evaluation.id) ? "省略表示" : "詳細表示"}
                       >
                         {expandedEvaluations.has(evaluation.id) ? '−' : '+'}
                       </button>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-1">{evaluation.question.title}</h3>
-                        <div className="text-sm text-gray-600">
-                          モデル: <span className="font-medium">{evaluation.model.name}</span> | 
-                          評価日: {new Date(evaluation.evaluatedAt).toLocaleDateString('ja-JP')}
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-semibold mb-1 truncate">{evaluation.question.title}</h3>
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div>
+                            モデル: <span className="font-medium">{evaluation.model.name}</span> | 
+                            評価日: {new Date(evaluation.evaluatedAt).toLocaleDateString('ja-JP')}
+                            {evaluation.evaluator && (
+                              <> | 評価者: <span className="font-medium">{evaluation.evaluator}</span></>
+                            )}
+                            {evaluation.processingTime && (
+                              <> | 処理時間: <span className="font-medium">{evaluation.processingTime}秒</span></>
+                            )}
+                          </div>
+                          {evaluation.environment && (
+                            <div>
+                              環境: <span className="font-medium">{evaluation.environment.name}</span> | 
+                              スペック: <span className="font-medium" title={evaluation.environment.processingSpec}>
+                                {evaluation.environment.processingSpec.length > 30 
+                                  ? evaluation.environment.processingSpec.substring(0, 30)
+                                  : evaluation.environment.processingSpec}
+                              </span>
+                              {evaluation.environment.processingSpec.length > 30 && (
+                                <button 
+                                  onClick={() => toggleEnvironmentExpanded(evaluation.id)}
+                                  className="text-blue-600 hover:text-blue-800 ml-1"
+                                  title="環境情報の詳細を表示/非表示"
+                                >
+                                  ...
+                                </button>
+                              )} | 
+                              アプリ: <span className="font-medium">{evaluation.environment.executionApp}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="grid grid-cols-4 gap-1">
-                        {[
-                          { key: 'accuracy', value: evaluation.scores.accuracy },
-                          { key: 'completeness', value: evaluation.scores.completeness },
-                          { key: 'logic', value: evaluation.scores.logic },
-                          { key: 'japanese', value: evaluation.scores.japanese },
-                        ].map((item) => (
-                          <div key={item.key} className={`text-xs font-semibold px-2 py-1 rounded text-center ${getScoreColor(item.value)}`}>
-                            {item.value}
-                          </div>
-                        ))}
-                      </div>
-                      <div className={`text-sm font-bold px-2 py-1 rounded ${getScoreColor(evaluation.scores.overall)}`}>
-                        {evaluation.scores.overall}
+                    
+                    {/* 右側: 評価スコア + 削除ボタン */}
+                    <div className="col-span-5 flex items-center justify-end gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="grid grid-cols-4 gap-1">
+                          {[
+                            { key: 'accuracy', label: '正', value: evaluation.scores.accuracy },
+                            { key: 'completeness', label: '網', value: evaluation.scores.completeness },
+                            { key: 'logic', label: '論', value: evaluation.scores.logic },
+                            { key: 'japanese', label: '日', value: evaluation.scores.japanese },
+                          ].map((item) => (
+                            <div key={item.key} className={`text-xs font-semibold px-2 py-1 rounded text-center ${getScoreColor(item.value)}`} title={item.label}>
+                              {item.value}
+                            </div>
+                          ))}
+                        </div>
+                        <div className={`text-lg font-bold px-3 py-2 rounded border-2 ${getScoreColor(evaluation.scores.overall)}`} title="総合評価">
+                          {evaluation.scores.overall}
+                        </div>
                       </div>
                       <button
                         onClick={() => handleDeleteEvaluation(evaluation.id)}
-                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 ml-2"
+                        className="bg-transparent text-red-600 px-3 py-2 rounded text-xs hover:bg-red-50 hover:border hover:border-red-400 flex-shrink-0"
                         title="この評価結果を削除"
                       >
                         削除
                       </button>
                     </div>
                   </div>
+                  
+                  {/* 環境情報詳細表示 */}
+                  {expandedEnvironments.has(evaluation.id) && evaluation.environment && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                      <h4 className="font-semibold text-blue-800 mb-3">評価環境詳細情報</h4>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="mb-2">
+                            <span className="font-medium text-gray-700">環境名:</span>
+                            <div className="text-gray-900 mt-1">{evaluation.environment.name}</div>
+                          </div>
+                          <div className="mb-2">
+                            <span className="font-medium text-gray-700">実行アプリ:</span>
+                            <div className="text-gray-900 mt-1">{evaluation.environment.executionApp}</div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-2">
+                            <span className="font-medium text-gray-700">処理スペック:</span>
+                            <div className="text-gray-900 mt-1 whitespace-pre-wrap break-words">
+                              {evaluation.environment.processingSpec}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {evaluation.environment.description && (
+                        <div className="mt-3">
+                          <span className="font-medium text-gray-700">説明:</span>
+                          <div className="text-gray-900 mt-1">{evaluation.environment.description}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {expandedEvaluations.has(evaluation.id) && (

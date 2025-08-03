@@ -10,7 +10,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const updatedPrompt = process.env.NODE_ENV === 'production'
       ? await kvEvaluationPromptService.update(id, { name, prompt, description })
-      : evaluationPromptService.update(id, { name, prompt, description });
+      : await evaluationPromptService.update(id, { name, prompt, description });
 
     if (!updatedPrompt) {
       return NextResponse.json(
@@ -35,7 +35,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     
     const success = process.env.NODE_ENV === 'production'
       ? await kvEvaluationPromptService.delete(id)
-      : evaluationPromptService.delete(id);
+      : await evaluationPromptService.delete(id);
     if (!success) {
       return NextResponse.json(
         { error: 'Prompt not found' },
